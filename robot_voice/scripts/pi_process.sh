@@ -37,6 +37,38 @@ python -m compileall -q src tests
 echo "[pi-process] Running tests"
 python -m pytest -q
 
+echo "[pi-process] Checking audio devices"
+if command -v arecord >/dev/null 2>&1; then
+  CAPTURE_DEVICES="$(arecord -l 2>/dev/null || true)"
+  if printf '%s\n' "$CAPTURE_DEVICES" | grep -q '^card '; then
+    echo "[pi-process] Capture devices:"
+    printf '%s\n' "$CAPTURE_DEVICES"
+  else
+    echo "[pi-process] No ALSA capture devices detected"
+    echo "[pi-process] Connect a USB microphone or enable/configure an I2S microphone"
+  fi
+else
+  echo "[pi-process] arecord not installed; install alsa-utils to inspect microphones"
+fi
+
+if command -v aplay >/dev/null 2>&1; then
+  PLAYBACK_DEVICES="$(aplay -l 2>/dev/null || true)"
+  if printf '%s\n' "$PLAYBACK_DEVICES" | grep -q '^card '; then
+    echo "[pi-process] Playback devices:"
+    printf '%s\n' "$PLAYBACK_DEVICES"
+  else
+    echo "[pi-process] No ALSA playback devices detected"
+    echo "[pi-process] Connect a USB speaker or enable/configure Pi audio output"
+  fi
+else
+  echo "[pi-process] aplay not installed; install alsa-utils to inspect speakers"
+fi
+
+if command -v arecord >/dev/null 2>&1; then
+  echo "[pi-process] ALSA device hints:"
+  arecord -L | sed -n '1,20p' || true
+fi
+
 echo "[pi-process] Checking serial devices"
 SERIAL_FOUND=0
 if compgen -G "/dev/ttyACM*" >/dev/null || compgen -G "/dev/ttyUSB*" >/dev/null; then
