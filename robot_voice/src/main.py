@@ -1,11 +1,15 @@
-from stt.listener import Listener
-from tts.speaker import Speaker
-from core.fsd_tree import FsdTree
+import os
+
+from audio.pipeline import audio_pipeline
 from comm.uart import UartClient
 from config.settings import Settings
+from config.version import VERSION
+from core.fsd_tree import FsdTree
+from stt.listener import Listener
+from tts.speaker import Speaker
 
 
-def main() -> None:
+def run_phase1() -> None:
     settings = Settings()
     listener = Listener(settings)
     speaker = Speaker(settings)
@@ -20,6 +24,61 @@ def main() -> None:
         speaker.say(f"Command sent: {action}")
     else:
         speaker.say("Command not recognized")
+
+
+def run_hybrid_workflow() -> None:
+    print(f"RUN VERSION {VERSION}")
+    print("FILE:", os.path.abspath(__file__))
+    print("=== ESP32 I2S -> USB CDC Frames -> Pi STT/FSD -> UART JSON ===")
+    audio_pipeline()
+
+
+def run_text_hybrid_workflow() -> None:
+    settings = Settings()
+    listener = Listener(settings)
+    speaker = Speaker(settings)
+    command_tree = FsdTree(settings)
+    uart = UartClient(settings)
+
+    print(f"RUN VERSION {VERSION}")
+    print("FILE:", os.path.abspath(__file__))
+    print("=== ESP32 Audio -> Pi FSD -> UART Control ===")
+    print(f"UART: {settings.uart_port} @ {settings.uart_baudrate} baud")
+    print(f"Dry run: {settings.dry_run}")
+    print("Type 'exit' to quit\n")
+
+    while True:
+        text = listener.listen()
+
+        if text.lower() == "exit":
+            print("Exiting...")
+            break
+
+        command = command_tree.resolve_command(text)
+
+        print("\n[DEBUG]")
+        print(f"Input  : {text}")
+        print(f"Command: {command}")
+
+        if command:
+            uart.send_json(command)
+            speaker.say(f"Command sent: {command['cmd']}")
+        else:
+            rejected = command_tree.reject(text)
+            print(f"Reject : {rejected}")
+            speaker.say("Command not recognized")
+
+        print("-" * 30)
+
+
+def main() -> None:
+    workflow = os.getenv("ROBOT_WORKFLOW", "phase1").lower()
+    if workflow in {"usb_cdc", "audio", "hybrid"}:
+        run_hybrid_workflow()
+    elif workflow in {"text_hybrid", "robot", "uart"}:
+        run_text_hybrid_workflow()
+    else:
+        run_phase1()
 
 
 if __name__ == "__main__":

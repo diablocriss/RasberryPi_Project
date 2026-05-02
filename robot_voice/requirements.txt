@@ -1,1 +1,6 @@
-pyserial>=3.5
+﻿pyserial==3.5
+numpy>=1.26.4,<3.0
+deepgram-sdk==3.10.0
+websockets>=12.0,<14.0
+python-dotenv==1.0.0
+pytest>=8.0,<9.0

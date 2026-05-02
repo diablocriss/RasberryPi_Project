@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+
+# Local configuration
+.env
+.env.*
+!.env.example
+
+# PlatformIO / embedded build output
+.pio/
+.vscode/c_cpp_properties.json
+.vscode/launch.json
+
+# OS/editor
+.DS_Store
+Thumbs.db
+.idea/
+
+# Logs/artifacts
+*.log
+*.zip
+htmlcov/
+.coverage
