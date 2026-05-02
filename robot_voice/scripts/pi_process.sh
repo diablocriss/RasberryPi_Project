@@ -37,6 +37,28 @@ python -m compileall -q src tests
 echo "[pi-process] Running tests"
 python -m pytest -q
 
+echo "[pi-process] Expected I2S wiring profile"
+echo "[pi-process] GPIO18 BCLK -> INMP441 SCK + MAX98357 BCLK"
+echo "[pi-process] GPIO19 LRCLK -> INMP441 WS + MAX98357 LRC"
+echo "[pi-process] GPIO21 DIN <- INMP441 SD"
+echo "[pi-process] GPIO20 DOUT -> MAX98357 DIN"
+echo "[pi-process] 3.3V -> INMP441 VDD; 5V -> MAX98357 VIN; GND shared"
+
+if [[ -r /boot/firmware/config.txt ]]; then
+  echo "[pi-process] Boot audio overlay lines:"
+  grep -Ei '^(dtparam=audio|dtoverlay=.*(i2s|hifi|dac|mic|audio))' /boot/firmware/config.txt || echo "[pi-process] No matching audio overlay lines found in /boot/firmware/config.txt"
+elif [[ -r /boot/config.txt ]]; then
+  echo "[pi-process] Boot audio overlay lines:"
+  grep -Ei '^(dtparam=audio|dtoverlay=.*(i2s|hifi|dac|mic|audio))' /boot/config.txt || echo "[pi-process] No matching audio overlay lines found in /boot/config.txt"
+else
+  echo "[pi-process] Boot config not readable; cannot inspect I2S overlays"
+fi
+
+if [[ -d /boot/firmware/overlays ]]; then
+  echo "[pi-process] Candidate installed audio overlays:"
+  find /boot/firmware/overlays -maxdepth 1 -type f | grep -Ei '(i2s|hifi|dac|mic|audio)' | sed -n '1,20p' || true
+fi
+
 echo "[pi-process] Checking audio devices"
 if command -v arecord >/dev/null 2>&1; then
   CAPTURE_DEVICES="$(arecord -l 2>/dev/null || true)"
@@ -45,7 +67,7 @@ if command -v arecord >/dev/null 2>&1; then
     printf '%s\n' "$CAPTURE_DEVICES"
   else
     echo "[pi-process] No ALSA capture devices detected"
-    echo "[pi-process] Connect a USB microphone or enable/configure an I2S microphone"
+    echo "[pi-process] Connect INMP441 wiring and enable/configure the I2S microphone overlay"
   fi
 else
   echo "[pi-process] arecord not installed; install alsa-utils to inspect microphones"
@@ -58,7 +80,7 @@ if command -v aplay >/dev/null 2>&1; then
     printf '%s\n' "$PLAYBACK_DEVICES"
   else
     echo "[pi-process] No ALSA playback devices detected"
-    echo "[pi-process] Connect a USB speaker or enable/configure Pi audio output"
+    echo "[pi-process] Connect MAX98357 wiring and enable/configure the I2S DAC overlay"
   fi
 else
   echo "[pi-process] aplay not installed; install alsa-utils to inspect speakers"
@@ -76,7 +98,7 @@ if compgen -G "/dev/ttyACM*" >/dev/null || compgen -G "/dev/ttyUSB*" >/dev/null;
   ls -l /dev/ttyACM* /dev/ttyUSB* 2>/dev/null || true
 else
   echo "[pi-process] No /dev/ttyACM* or /dev/ttyUSB* devices detected"
-  echo "[pi-process] Connect ESP32 USB data cable, then rerun: ls -l /dev/ttyACM* /dev/ttyUSB*"
+  echo "[pi-process] Connect ESP32 motor controller USB data cable, then rerun: ls -l /dev/ttyACM* /dev/ttyUSB*"
 fi
 
 if command -v lsusb >/dev/null 2>&1; then

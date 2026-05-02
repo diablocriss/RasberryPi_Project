@@ -4,6 +4,8 @@ Python command pipeline for the Raspberry Pi robot voice controller. This packag
 
 Full target architecture: [../docs/SYSTEM_DESIGN.md](../docs/SYSTEM_DESIGN.md)
 
+I2S wiring diagram: [../docs/I2S_WIRING.md](../docs/I2S_WIRING.md)
+
 ## Workflows
 
 Text dry-run workflow:
@@ -114,6 +116,9 @@ The current STT processor streams 16 kHz linear PCM to Deepgram. Set `DEEPGRAM_A
 ROBOT_WORKFLOW=phase1              original text workflow
 ROBOT_WORKFLOW=text_hybrid         text workflow with JSON commands
 ROBOT_WORKFLOW=usb_cdc             legacy USB CDC audio workflow
+ROBOT_AUDIO_HARDWARE_PROFILE=i2s_inmp441_max98357
+ROBOT_AUDIO_INPUT_DEVICE=default   ALSA capture device for INMP441
+ROBOT_AUDIO_OUTPUT_DEVICE=default  ALSA playback device for MAX98357
 ROBOT_AUDIO_CDC_PORT=/dev/ttyACM0  USB CDC audio source
 ROBOT_AUDIO_CDC_BAUDRATE=921600    USB CDC baud
 ROBOT_UART_PORT=/dev/ttyUSB0       ESP32 motor UART port on Pi

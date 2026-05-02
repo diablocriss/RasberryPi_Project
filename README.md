@@ -19,6 +19,8 @@ Voice command
 
 Full architecture diagram: [docs/SYSTEM_DESIGN.md](docs/SYSTEM_DESIGN.md)
 
+I2S wiring diagram: [docs/I2S_WIRING.md](docs/I2S_WIRING.md)
+
 ## Repository Layout
 
 ```text
@@ -42,6 +44,7 @@ docs/
 
 - Text-command workflow for safe Windows development.
 - Raspberry Pi one-time setup/check runner.
+- INMP441 I2S microphone and MAX98357 I2S amplifier target hardware.
 - Deepgram STT support for 16 kHz linear PCM audio.
 - Command resolver with common aliases and typo tolerance.
 - UART dry-run mode to validate robot commands without moving hardware.
@@ -142,6 +145,9 @@ Common environment variables:
 ```text
 ROBOT_WORKFLOW=phase1 | text_hybrid | usb_cdc
 ROBOT_DRY_RUN=1
+ROBOT_AUDIO_HARDWARE_PROFILE=i2s_inmp441_max98357
+ROBOT_AUDIO_INPUT_DEVICE=default
+ROBOT_AUDIO_OUTPUT_DEVICE=default
 ROBOT_AUDIO_CDC_PORT=/dev/ttyACM0
 ROBOT_AUDIO_CDC_BAUDRATE=921600
 ROBOT_UART_PORT=/dev/ttyUSB0

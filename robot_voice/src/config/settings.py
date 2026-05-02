@@ -49,6 +49,9 @@ class Settings:
     audio_sample_rate: int = 16000
     audio_bits: int = 16
     audio_channels: int = 1
+    audio_input_device: str = field(default_factory=lambda: os.getenv("ROBOT_AUDIO_INPUT_DEVICE", "default"))
+    audio_output_device: str = field(default_factory=lambda: os.getenv("ROBOT_AUDIO_OUTPUT_DEVICE", "default"))
+    audio_hardware_profile: str = field(default_factory=lambda: os.getenv("ROBOT_AUDIO_HARDWARE_PROFILE", "i2s_inmp441_max98357"))
     audio_frame_min_bytes: int = 64
     audio_frame_max_bytes: int = 1024
     deepgram_api_key: str = field(default_factory=lambda: os.getenv("DEEPGRAM_API_KEY", ""))

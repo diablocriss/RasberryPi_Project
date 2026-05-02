@@ -14,10 +14,10 @@ flowchart TB
     subgraph RASPBERRY_PI["Raspberry Pi 4 - All-in-One Controller"]
         direction TB
 
-        subgraph AUDIO_HARDWARE["Audio Hardware on Pi"]
-            MIC_USB["USB Microphone<br/>or I2S Mic<br/>16kHz/16bit"]
-            SPEAKER_3MM["3.5mm Audio Jack<br/>or USB Speaker"]
-            AUDIO_DEVICE["ALSA Device<br/>hw:0,0"]
+        subgraph AUDIO_HARDWARE["I2S Audio Hardware on Pi"]
+            MIC_USB["INMP441 I2S Mic<br/>GPIO18/19/21<br/>16kHz/16bit"]
+            SPEAKER_3MM["MAX98357 I2S Amp<br/>GPIO18/19/20<br/>Speaker Output"]
+            AUDIO_DEVICE["ALSA I2S Devices<br/>capture + playback"]
         end
 
         subgraph AUDIO_CAPTURE["Audio Capture Layer"]
@@ -108,7 +108,7 @@ flowchart TB
 
 | Layer | Responsibility | Preferred implementation |
 | --- | --- | --- |
-| Audio hardware | Capture user voice and play feedback | USB mic first, 3.5mm or USB speaker |
+| Audio hardware | Capture user voice and play feedback | INMP441 I2S microphone and MAX98357 I2S amplifier |
 | Audio capture | Stream 16 kHz 16-bit mono PCM into a queue | PyAudio / ALSA |
 | STT router | Select online or offline speech recognition | Deepgram if key/network available, otherwise Vosk |
 | Command resolution | Convert recognized text into robot command JSON | `FsdTree.resolve_command()` |
@@ -135,6 +135,8 @@ Target additions from this design:
 - TTS router that chooses Piper or Edge TTS.
 - Audio playback through Pi audio output.
 - A new `pi_audio` runtime mode that replaces the older ESP32 USB CDC microphone path.
+
+Hardware wiring: [I2S_WIRING.md](I2S_WIRING.md).
 
 ## Development Plan
 
