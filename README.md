@@ -121,6 +121,22 @@ cd /home/phuong/robot_voice
 ROBOT_WORKFLOW=usb_cdc ROBOT_DRY_RUN=1 python3 src/main.py
 ```
 
+One-time Pi setup/check runner:
+
+```bash
+cd /home/phuong/robot_voice
+bash scripts/pi_process.sh check
+```
+
+Runner modes:
+
+```text
+check  create venv, install requirements, create .env, run tests, list serial devices
+text   run checks, then start text workflow dry-run
+usb    run checks, then start USB CDC workflow dry-run
+live   run checks, then start USB CDC workflow with real UART output
+```
+
 Keep `ROBOT_DRY_RUN=1` until command output is correct. Set `ROBOT_DRY_RUN=0` only when the ESP32 motor controller is connected and ready.
 
 ## Runtime Configuration

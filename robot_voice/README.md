@@ -132,6 +132,15 @@ python3 -m pytest -q
 ROBOT_WORKFLOW=usb_cdc ROBOT_DRY_RUN=1 python3 src/main.py
 ```
 
+One-time Pi setup/check runner:
+
+```bash
+cd /home/phuong/robot_voice
+bash scripts/pi_process.sh check
+```
+
+Use `text`, `usb`, or `live` instead of `check` to start the text dry-run, USB CDC dry-run, or real UART mode after setup.
+
 ## Safety Notes
 
 The Pi is the soft real-time processor. ESP32 #2 remains responsible for hard real-time motor control and should locally enforce:
