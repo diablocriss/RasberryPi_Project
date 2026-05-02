@@ -1,0 +1,4 @@
+﻿-r requirements.txt
+pyaudio>=0.2.11
+vosk>=0.3.45
+edge-tts>=6.1.0

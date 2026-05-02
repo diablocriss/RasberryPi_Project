@@ -1,0 +1,74 @@
+﻿project_map:
+  root: /home/phuong/robot_voice
+  directories:
+    src:
+      description: Main source code
+      subdirs:
+        audio:
+          description: Audio I/O with I2S (INMP441 + MAX98357)
+          files:
+            i2s_config.py: I2S hardware configuration
+            i2s_capture.py: INMP441 microphone capture
+            i2s_playback.py: MAX98357 amplifier playback
+            pipeline_i2s.py: Main audio pipeline with I2S
+            vad.py: Voice Activity Detection
+        comm:
+          description: Communication protocols
+          files:
+            uart.py: UART communication with ESP32
+            usb_cdc_audio.py: Deprecated legacy USB CDC audio parser
+        config:
+          description: Configuration management
+          files:
+            settings.py: All environment variables
+            version.py: Version tracking
+        core:
+          description: Core logic
+          files:
+            fsd_tree.py: Command resolution tree
+            command_builder.py: JSON command constructor
+        stt:
+          description: Speech-to-Text engines
+          files:
+            router.py: Auto-select STT engine
+            deepgram_stt.py: Cloud STT (Deepgram)
+            vosk_stt.py: Offline STT (Vosk)
+            processor.py: Legacy STT processor
+        tts:
+          description: Text-to-Speech engines
+          files:
+            router.py: Auto-select TTS engine
+            piper_tts.py: Offline TTS (Piper)
+            edge_tts.py: Cloud TTS (Edge)
+        utils:
+          description: Utilities
+          files:
+            logger.py: Logging setup
+            network.py: Internet connectivity check
+            audio_utils.py: Audio processing helpers
+    scripts:
+      description: Deployment and utility scripts
+    tests:
+      description: Unit and integration tests
+    models:
+      description: Offline STT/TTS model placeholders
+    configs:
+      description: Configuration files
+    docs:
+      description: Documentation
+    logs:
+      description: Runtime logs
+  hardware:
+    pi4: Raspberry Pi 4 Model B, 4GB
+    microphone: INMP441 I2S microphone
+    amplifier: MAX98357 I2S amplifier
+    speaker: 4-8 ohm speaker
+    esp32: ESP32 #2 motor controller
+  software_stack:
+    system: [alsa-utils, portaudio19-dev, python3-pyaudio, ffmpeg, git]
+    python: [pyaudio, numpy, pyserial, vosk, deepgram-sdk, python-dotenv, edge-tts]
+  documentation:
+    hardware: docs/HARDWARE_SETUP.md
+    software: docs/SOFTWARE_SETUP.md
+    api: docs/API.md
+    troubleshooting: docs/TROUBLESHOOTING.md

@@ -27,3 +27,12 @@ Thumbs.db
 *.zip
 htmlcov/
 .coverage
+
+# Large ML model files
+*.onnx
+*.tflite
+*.pt
+*.bin
+models/vosk/*/
+!models/vosk/*/.gitkeep
+

@@ -1,0 +1,45 @@
+﻿progress_tracker:
+  total_tasks: 45
+  completed: 0
+  in_progress: 0
+  pending: 45
+  phases:
+    phase_0_preparation:
+      status: not_started
+      tasks:
+        - {name: Install I2S drivers, status: pending, priority: high, assignee: phuong}
+        - {name: Test INMP441, status: pending, priority: high}
+        - {name: Test MAX98357, status: pending, priority: high}
+        - {name: Wiring verification, status: pending, priority: critical}
+    phase_1_audio_capture:
+      status: not_started
+      tasks:
+        - {name: I2SMicrophone class, status: pending, priority: high}
+        - {name: VAD implementation, status: pending, priority: medium}
+        - {name: Buffer optimization, status: pending, priority: medium}
+    phase_2_audio_playback:
+      status: not_started
+      tasks:
+        - {name: I2SAmplifier class, status: pending, priority: high}
+        - {name: Piper integration, status: pending, priority: high}
+    phase_3_stt_integration:
+      status: not_started
+      tasks:
+        - {name: STTRouter, status: pending, priority: high}
+        - {name: Vosk setup, status: pending, priority: medium}
+    phase_4_pipeline:
+      status: not_started
+      tasks:
+        - {name: I2SAudioPipeline, status: pending, priority: high}
+        - {name: End-to-end testing, status: pending, priority: critical}
+    phase_5_optimization:
+      status: not_started
+      tasks:
+        - {name: Latency tuning, status: pending, priority: medium}
+        - {name: Documentation, status: pending, priority: low}
+  milestones:
+    - {name: Hardware setup complete, target_date: '2026-05-06', status: pending}
+    - {name: Audio capture working, target_date: '2026-05-10', status: pending}
+    - {name: TTS feedback working, target_date: '2026-05-13', status: pending}
+    - {name: Full pipeline operational, target_date: '2026-05-17', status: pending}
+    - {name: Production ready, target_date: '2026-05-20', status: pending}

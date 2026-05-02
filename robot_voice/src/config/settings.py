@@ -52,7 +52,10 @@ class Settings:
     audio_input_device: str = field(default_factory=lambda: os.getenv("ROBOT_AUDIO_INPUT_DEVICE", "default"))
     audio_output_device: str = field(default_factory=lambda: os.getenv("ROBOT_AUDIO_OUTPUT_DEVICE", "default"))
     audio_hardware_profile: str = field(default_factory=lambda: os.getenv("ROBOT_AUDIO_HARDWARE_PROFILE", "i2s_inmp441_max98357"))
+    audio_output_sample_rate: int = field(default_factory=lambda: _int_env("SAMPLE_RATE_AMP", 22050))
     audio_frame_min_bytes: int = 64
     audio_frame_max_bytes: int = 1024
+    stt_mode: str = field(default_factory=lambda: os.getenv("STT_MODE", "auto"))
+    tts_mode: str = field(default_factory=lambda: os.getenv("TTS_MODE", "auto"))
     deepgram_api_key: str = field(default_factory=lambda: os.getenv("DEEPGRAM_API_KEY", ""))
     deepgram_language: str = field(default_factory=lambda: os.getenv("DEEPGRAM_LANGUAGE", "en-US"))
