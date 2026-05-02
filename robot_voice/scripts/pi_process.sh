@@ -106,7 +106,7 @@ if command -v lsusb >/dev/null 2>&1; then
   lsusb
 fi
 
-if [[ "$RUN_MODE" == "usb" || "$RUN_MODE" == "live" ]] && [[ "$SERIAL_FOUND" == "0" ]]; then
+if [[ "$RUN_MODE" == "usb" || "$RUN_MODE" == "live" || "$RUN_MODE" == "pi-audio-live" ]] && [[ "$SERIAL_FOUND" == "0" ]]; then
   echo "[pi-process] Cannot start $RUN_MODE mode without an ESP32 serial device" >&2
   exit 3
 fi
@@ -123,12 +123,20 @@ case "$RUN_MODE" in
     echo "[pi-process] Running USB CDC workflow in dry-run mode"
     ROBOT_WORKFLOW=usb_cdc ROBOT_DRY_RUN=1 python src/main.py
     ;;
+  pi-audio)
+    echo "[pi-process] Running Pi I2S audio workflow in dry-run mode"
+    ROBOT_WORKFLOW=pi_audio ROBOT_DRY_RUN=1 python src/main.py
+    ;;
+  pi-audio-live)
+    echo "[pi-process] Running Pi I2S audio workflow with real UART output"
+    ROBOT_WORKFLOW=pi_audio ROBOT_DRY_RUN=0 python src/main.py
+    ;;
   live)
     echo "[pi-process] Running USB CDC workflow with real UART output"
     ROBOT_WORKFLOW=usb_cdc ROBOT_DRY_RUN=0 python src/main.py
     ;;
   *)
-    echo "Usage: $0 [check|text|usb|live]" >&2
+    echo "Usage: $0 [check|text|usb|pi-audio|pi-audio-live|live]" >&2
     exit 2
     ;;
 esac

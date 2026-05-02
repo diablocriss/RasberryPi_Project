@@ -51,19 +51,24 @@ $env:ROBOT_WORKFLOW = "usb_cdc"
 py src/main.py
 ```
 
-Target Pi-local audio workflow:
+Pi-local audio workflow:
 
 ```text
-USB/I2S microphone on Pi
+INMP441 I2S microphone on Pi
 -> PyAudio/ALSA capture
 -> STT router: Deepgram cloud or Vosk offline
--> FSD tree
+-> AI FSD resolver: TASX-Cmd-0.5B via llama.cpp
+-> keyword FSD fallback
 -> UART JSON to ESP32 motor controller
 -> TTS router: Piper offline or Edge TTS cloud
 -> Pi speaker output
 ```
 
-This target workflow is documented but not fully implemented yet.
+Run:
+
+```bash
+ROBOT_WORKFLOW=pi_audio ROBOT_DRY_RUN=1 python src/main.py
+```
 
 ## USB CDC Packet Protocol
 
@@ -116,6 +121,9 @@ The current STT processor streams 16 kHz linear PCM to Deepgram. Set `DEEPGRAM_A
 ROBOT_WORKFLOW=phase1              original text workflow
 ROBOT_WORKFLOW=text_hybrid         text workflow with JSON commands
 ROBOT_WORKFLOW=usb_cdc             legacy USB CDC audio workflow
+ROBOT_WORKFLOW=pi_audio            Pi I2S audio workflow
+ROBOT_WORKFLOW=ai_fsd              Pi I2S audio workflow with AI FSD
+ROBOT_WORKFLOW=keyword             Pi I2S audio workflow with keyword FSD only
 ROBOT_AUDIO_HARDWARE_PROFILE=i2s_inmp441_max98357
 ROBOT_AUDIO_INPUT_DEVICE=default   ALSA capture device for INMP441
 ROBOT_AUDIO_OUTPUT_DEVICE=default  ALSA playback device for MAX98357
@@ -128,6 +136,27 @@ ROBOT_DEFAULT_SPEED=120            default motor speed
 ROBOT_DEFAULT_MOVE_TIME_MS=1000    default move duration
 DEEPGRAM_API_KEY=...               Deepgram API key
 DEEPGRAM_LANGUAGE=en-US            STT language
+AI_ENABLED=1                       enable TASX AI resolver before keyword fallback
+AI_MODEL_PATH=models/tasx-cmd-0.5b-q4_k_m.gguf
+AI_CONFIDENCE_THRESHOLD=0.7
+AI_TIMEOUT_MS=800
+```
+
+## AI FSD Setup
+
+Install and download the TASX GGUF model on the Pi:
+
+```bash
+cd /home/phuong/robot_voice
+pip install llama-cpp-python --extra-index-url https://www.piwheels.org/simple
+mkdir -p models
+wget -O models/tasx-cmd-0.5b-q4_k_m.gguf https://huggingface.co/ReXeeD/TASX-Cmd-0.5B-GGUF/resolve/main/tasx-cmd-0.5b-q4_k_m.gguf
+```
+
+Start the I2S pipeline with AI enabled:
+
+```bash
+ROBOT_WORKFLOW=ai_fsd ROBOT_DRY_RUN=1 python src/main.py
 ```
 
 ## Development Split
@@ -154,9 +183,9 @@ cd /home/phuong/robot_voice
 bash scripts/pi_process.sh check
 ```
 
-Use `text`, `usb`, or `live` instead of `check` to start the text dry-run, USB CDC dry-run, or real UART mode after setup.
+Use `text`, `usb`, `pi-audio`, `pi-audio-live`, or `live` instead of `check` to start the text dry-run, USB CDC dry-run, Pi I2S dry-run, Pi I2S real UART mode, or USB CDC real UART mode after setup.
 
-The runner uses quiet dependency checks by default. Use `VERBOSE=1 bash scripts/pi_process.sh check` for full `pip` output. `usb` and `live` modes stop early if no `/dev/ttyACM*` or `/dev/ttyUSB*` device is detected.
+The runner uses quiet dependency checks by default. Use `VERBOSE=1 bash scripts/pi_process.sh check` for full `pip` output. `usb`, `live`, and `pi-audio-live` modes stop early if no `/dev/ttyACM*` or `/dev/ttyUSB*` device is detected.
 
 ## Safety Notes
 

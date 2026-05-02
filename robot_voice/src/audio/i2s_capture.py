@@ -1,6 +1,7 @@
 ﻿from collections.abc import Iterator
 
 from audio.i2s_config import I2SConfig
+from audio.pyaudio_devices import device_index
 
 
 class I2SMicrophone:
@@ -16,11 +17,13 @@ class I2SMicrophone:
             raise RuntimeError("PyAudio is required for I2S microphone capture") from exc
 
         self._audio = pyaudio.PyAudio()
+        input_device_index = device_index(self._audio, self.config.mic_device, input_device=True)
         self._stream = self._audio.open(
             format=pyaudio.paInt16,
             channels=self.config.channels,
             rate=self.config.mic_sample_rate,
             input=True,
+            input_device_index=input_device_index,
             frames_per_buffer=self.config.frames_per_buffer,
         )
 

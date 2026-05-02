@@ -1,6 +1,7 @@
 import os
 
 from audio.pipeline import audio_pipeline
+from audio.pipeline_i2s import run_i2s_pipeline
 from comm.uart import UartClient
 from config.settings import Settings
 from config.version import VERSION
@@ -75,6 +76,14 @@ def main() -> None:
     workflow = os.getenv("ROBOT_WORKFLOW", "phase1").lower()
     if workflow in {"usb_cdc", "audio", "hybrid"}:
         run_hybrid_workflow()
+    elif workflow in {"ai_fsd", "ai"}:
+        run_i2s_pipeline(Settings())
+    elif workflow == "keyword":
+        settings = Settings()
+        object.__setattr__(settings, "ai_enabled", False)
+        run_i2s_pipeline(settings)
+    elif workflow in {"pi_audio", "i2s"}:
+        run_i2s_pipeline()
     elif workflow in {"text_hybrid", "robot", "uart"}:
         run_text_hybrid_workflow()
     else:

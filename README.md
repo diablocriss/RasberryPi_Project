@@ -125,6 +125,8 @@ Runner modes:
 check  create venv, install requirements, create .env, run tests, list devices
 text   run checks, then start text workflow dry-run
 usb    run checks, then start legacy USB CDC workflow dry-run
+pi-audio  run checks, then start Pi I2S audio workflow dry-run
+pi-audio-live  run checks, then start Pi I2S audio workflow with real UART output
 live   run checks, then start legacy USB CDC workflow with real UART output
 ```
 
@@ -173,11 +175,12 @@ Implemented now:
 
 Planned next from the all-in-one Pi design:
 
-- Pi-local USB/I2S microphone capture.
+- `ROBOT_WORKFLOW=pi_audio` runtime entrypoint.
+- Pi-local I2S microphone capture with configured ALSA input device.
 - STT router: Deepgram cloud or Vosk offline.
 - TTS router: Piper offline or Edge TTS cloud.
 - Pi audio playback for command feedback.
-- `ROBOT_WORKFLOW=pi_audio`.
+- Full offline Vosk model loading.
 
 ## Safety
 
