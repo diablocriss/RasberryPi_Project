@@ -137,6 +137,14 @@ usb    run checks, then start USB CDC workflow dry-run
 live   run checks, then start USB CDC workflow with real UART output
 ```
 
+The runner is quiet by default. Use `VERBOSE=1` when you need full `pip` output:
+
+```bash
+VERBOSE=1 bash scripts/pi_process.sh check
+```
+
+`usb` and `live` modes stop early if no `/dev/ttyACM*` or `/dev/ttyUSB*` device is detected.
+
 Keep `ROBOT_DRY_RUN=1` until command output is correct. Set `ROBOT_DRY_RUN=0` only when the ESP32 motor controller is connected and ready.
 
 ## Runtime Configuration

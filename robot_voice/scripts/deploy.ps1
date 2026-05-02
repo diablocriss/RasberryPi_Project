@@ -26,6 +26,7 @@ if ($Password) {
     & $Pscp -hostkey $HostKey -pw $Password "$ProjectRoot\requirements.txt" "${User}@${HostName}:${RemotePath}"
     & $Pscp -hostkey $HostKey -pw $Password "$ProjectRoot\README.md" "${User}@${HostName}:${RemotePath}"
     & $Pscp -hostkey $HostKey -pw $Password "$ProjectRoot\.env.example" "${User}@${HostName}:${RemotePath}"
+    & $Plink -ssh "${User}@${HostName}" -hostkey $HostKey -pw $Password -batch "chmod +x '$RemotePath/scripts/pi_process.sh'"
 } else {
     ssh "$User@$HostName" "mkdir -p '$RemotePath'"
     scp -r "$ProjectRoot\src" "${User}@${HostName}:${RemotePath}"
@@ -34,6 +35,7 @@ if ($Password) {
     scp "$ProjectRoot\requirements.txt" "${User}@${HostName}:${RemotePath}"
     scp "$ProjectRoot\README.md" "${User}@${HostName}:${RemotePath}"
     scp "$ProjectRoot\.env.example" "${User}@${HostName}:${RemotePath}"
+    ssh "$User@$HostName" "chmod +x '$RemotePath/scripts/pi_process.sh'"
 }
 
 Write-Host "Deploy complete"

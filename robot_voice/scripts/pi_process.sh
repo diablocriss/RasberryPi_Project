@@ -3,8 +3,11 @@ set -euo pipefail
 
 PROJECT_DIR="${PROJECT_DIR:-/home/phuong/robot_voice}"
 RUN_MODE="${1:-check}"
+VERBOSE="${VERBOSE:-0}"
 
 cd "$PROJECT_DIR"
+echo "[pi-process] Project: $PROJECT_DIR"
+echo "[pi-process] Mode: $RUN_MODE"
 
 if [[ ! -d ".venv" ]]; then
   echo "[pi-process] Creating virtual environment"
@@ -14,8 +17,12 @@ fi
 # shellcheck disable=SC1091
 . .venv/bin/activate
 
-echo "[pi-process] Installing requirements"
-python -m pip install -r requirements.txt
+echo "[pi-process] Checking requirements"
+if [[ "$VERBOSE" == "1" ]]; then
+  python -m pip install -r requirements.txt
+else
+  python -m pip install -q -r requirements.txt
+fi
 
 if [[ ! -f ".env" ]]; then
   echo "[pi-process] Creating .env from .env.example"
@@ -31,10 +38,23 @@ echo "[pi-process] Running tests"
 python -m pytest -q
 
 echo "[pi-process] Checking serial devices"
-if ls /dev/ttyACM* /dev/ttyUSB* >/dev/null 2>&1; then
+SERIAL_FOUND=0
+if compgen -G "/dev/ttyACM*" >/dev/null || compgen -G "/dev/ttyUSB*" >/dev/null; then
+  SERIAL_FOUND=1
   ls -l /dev/ttyACM* /dev/ttyUSB* 2>/dev/null || true
 else
   echo "[pi-process] No /dev/ttyACM* or /dev/ttyUSB* devices detected"
+  echo "[pi-process] Connect ESP32 USB data cable, then rerun: ls -l /dev/ttyACM* /dev/ttyUSB*"
+fi
+
+if command -v lsusb >/dev/null 2>&1; then
+  echo "[pi-process] USB devices:"
+  lsusb
+fi
+
+if [[ "$RUN_MODE" == "usb" || "$RUN_MODE" == "live" ]] && [[ "$SERIAL_FOUND" == "0" ]]; then
+  echo "[pi-process] Cannot start $RUN_MODE mode without an ESP32 serial device" >&2
+  exit 3
 fi
 
 case "$RUN_MODE" in

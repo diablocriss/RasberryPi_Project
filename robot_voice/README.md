@@ -141,6 +141,8 @@ bash scripts/pi_process.sh check
 
 Use `text`, `usb`, or `live` instead of `check` to start the text dry-run, USB CDC dry-run, or real UART mode after setup.
 
+The runner uses quiet dependency checks by default. Use `VERBOSE=1 bash scripts/pi_process.sh check` for full `pip` output. `usb` and `live` modes stop early if no `/dev/ttyACM*` or `/dev/ttyUSB*` device is detected.
+
 ## Safety Notes
 
 The Pi is the soft real-time processor. ESP32 #2 remains responsible for hard real-time motor control and should locally enforce:
