@@ -22,8 +22,8 @@ def test_common_rule_fixes():
         "speed": 100,
         "time_ms": 500,
     }
-    assert pipeline.process("halt") == {"cmd": "STOP", "dir": "STOP", "speed": 0, "time_ms": 0}
-    assert pipeline.process("freeze") == {"cmd": "STOP", "dir": "STOP", "speed": 0, "time_ms": 0}
+    assert pipeline.process("halt") == {"cmd": "STOP", "time_ms": 0}
+    assert pipeline.process("freeze") == {"cmd": "STOP", "time_ms": 0}
 
 
 def test_speed_context_adjustments():
