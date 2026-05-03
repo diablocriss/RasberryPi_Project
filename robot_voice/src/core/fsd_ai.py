@@ -59,8 +59,21 @@ class TASXResolver:
 
         return self._parse_response(raw)
 
+    _SYSTEM = (
+        "You are a robot motor command parser. "
+        "Convert natural language into a JSON object with an \"actions\" array. "
+        "Each action has: cmd (MOVE|TURN|STOP|SPEED), "
+        "dir (FORWARD|BACKWARD|LEFT|RIGHT, omit for STOP/SPEED), "
+        "speed (0-255, optional), time_ms (100-5000, optional). "
+        "Output ONLY the JSON object, no explanation."
+    )
+
     def _build_prompt(self, text: str) -> str:
-        return f"<|im_start|>user\n{text.strip()}<|im_end|>\n<|im_start|>assistant\n"
+        return (
+            f"<|im_start|>system\n{self._SYSTEM}<|im_end|>\n"
+            f"<|im_start|>user\n{text.strip()}<|im_end|>\n"
+            f"<|im_start|>assistant\n"
+        )
 
     def _parse_response(self, raw: str) -> tuple[Command | None, float]:
         try:
