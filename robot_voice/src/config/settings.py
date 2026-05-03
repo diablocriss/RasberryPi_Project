@@ -63,5 +63,5 @@ class Settings:
     ai_model_type: str = field(default_factory=lambda: os.getenv("AI_MODEL_TYPE", "qwen"))
     ai_model_path: str = field(default_factory=lambda: os.getenv("AI_MODEL_PATH", "models/qwen2.5-0.5b-instruct-q4_k_m.gguf"))
     ai_confidence_threshold: float = field(default_factory=lambda: _float_env("AI_CONFIDENCE_THRESHOLD", 0.7))
-    ai_timeout_ms: int = field(default_factory=lambda: _int_env("AI_TIMEOUT_MS", 800))
+    ai_timeout_ms: int = field(default_factory=lambda: _int_env("AI_TIMEOUT_MS", 30000))
     ai_context_history: int = field(default_factory=lambda: _int_env("AI_CONTEXT_HISTORY", 10))

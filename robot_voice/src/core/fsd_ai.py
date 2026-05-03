@@ -10,12 +10,13 @@ Command = dict[str, Any]
 
 
 class TASXResolver:
-    def __init__(self, model_path: str, n_ctx: int = 256, n_threads: int = 4) -> None:
+    def __init__(self, model_path: str, n_ctx: int = 256, n_threads: int = 2) -> None:
         self.model_path = model_path
         self.n_ctx = n_ctx
         self.n_threads = n_threads
         self.settings = Settings()
         self._llm = None
+        self._executor = ThreadPoolExecutor(max_workers=1)
 
     def load(self) -> bool:
         if self._llm is not None:
@@ -42,20 +43,11 @@ class TASXResolver:
         if not text.strip() or not self.load():
             return None, 0.0
 
-        executor = ThreadPoolExecutor(max_workers=1)
-        future = executor.submit(self._generate, self._build_prompt(text))
+        future = self._executor.submit(self._generate, self._build_prompt(text))
         try:
             raw = future.result(timeout=self.settings.ai_timeout_ms / 1000)
-        except TimeoutError:
-            future.cancel()
-            executor.shutdown(wait=False, cancel_futures=True)
+        except (TimeoutError, Exception):
             return None, 0.0
-        except Exception:
-            executor.shutdown(wait=False, cancel_futures=True)
-            return None, 0.0
-        finally:
-            if future.done():
-                executor.shutdown(wait=False)
 
         return self._parse_response(raw)
 
@@ -93,6 +85,8 @@ class TASXResolver:
 
     def unload(self) -> None:
         self._llm = None
+        self._executor.shutdown(wait=False)
+        self._executor = ThreadPoolExecutor(max_workers=1)
 
     def _generate(self, prompt: str) -> str:
         result = self._llm(
