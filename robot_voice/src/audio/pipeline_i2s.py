@@ -23,6 +23,8 @@ def run_i2s_pipeline(settings: Settings | None = None) -> None:
     uart = UartClient(settings)
 
     print("[I2S] Pipeline started")
+    stt.transcribe(bytes(3200))  # force model load before greeting
+    tts.say("Hello? Is anyone there? I am robot assistant!")
     for frame in microphone.frames():
         text = stt.transcribe(frame)
         if not text:

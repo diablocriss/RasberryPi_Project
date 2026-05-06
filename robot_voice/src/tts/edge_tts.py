@@ -25,7 +25,7 @@ class EdgeTTS:
 
         raw_path = mp3_path.with_suffix(".raw")
         try:
-            communicate = edge_tts.Communicate(text, _VOICE, rate="-30%")
+            communicate = edge_tts.Communicate(text, _VOICE, rate="-20%")
             await communicate.save(str(mp3_path))
             subprocess.run(
                 ["ffmpeg", "-i", str(mp3_path), "-f", "s16le", "-ar", "22050", "-ac", "1", str(raw_path)],
