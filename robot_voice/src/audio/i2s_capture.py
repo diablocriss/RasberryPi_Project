@@ -1,46 +1,61 @@
-﻿from collections.abc import Iterator
+from collections.abc import Iterator
+import subprocess
+
+import numpy as np
 
 from audio.i2s_config import I2SConfig
-from audio.pyaudio_devices import device_index
+
+_HW_RATE = 48000
+_HW_CHANNELS = 2
+_HW_DEVICE = "plughw:2,0"
 
 
 class I2SMicrophone:
     def __init__(self, config: I2SConfig | None = None) -> None:
         self.config = config or I2SConfig()
-        self._audio = None
-        self._stream = None
+        self._process: subprocess.Popen | None = None
+        self._bytes_per_frame = (
+            self.config.frames_per_buffer * _HW_CHANNELS * 4  # S32_LE = 4 bytes
+        )
 
     def open(self) -> None:
-        try:
-            import pyaudio
-        except ImportError as exc:
-            raise RuntimeError("PyAudio is required for I2S microphone capture") from exc
-
-        self._audio = pyaudio.PyAudio()
-        input_device_index = device_index(self._audio, self.config.mic_device, input_device=True)
-        self._stream = self._audio.open(
-            format=pyaudio.paInt16,
-            channels=self.config.channels,
-            rate=self.config.mic_sample_rate,
-            input=True,
-            input_device_index=input_device_index,
-            frames_per_buffer=self.config.frames_per_buffer,
+        self._process = subprocess.Popen(
+            [
+                "arecord",
+                "-D", _HW_DEVICE,
+                "-f", "S32_LE",
+                "-r", str(_HW_RATE),
+                "-c", str(_HW_CHANNELS),
+                "-q",
+            ],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
         )
 
     def read(self) -> bytes:
-        if self._stream is None:
+        if self._process is None:
             self.open()
-        return self._stream.read(self.config.frames_per_buffer, exception_on_overflow=False)
+        raw = self._process.stdout.read(self._bytes_per_frame)
+        if not raw:
+            raise RuntimeError("arecord stream ended unexpectedly")
+        return self._convert(raw)
+
+    def _convert(self, raw: bytes) -> bytes:
+        """Convert S32_LE 48kHz stereo → S16_LE target-rate mono."""
+        samples = np.frombuffer(raw, dtype=np.int32).reshape(-1, _HW_CHANNELS)
+        mono = samples[:, 0]
+        target_rate = self.config.mic_sample_rate
+        if _HW_RATE != target_rate:
+            ratio = _HW_RATE // target_rate
+            mono = mono[::ratio]
+        return (mono >> 16).astype(np.int16).tobytes()
 
     def frames(self) -> Iterator[bytes]:
         while True:
             yield self.read()
 
     def close(self) -> None:
-        if self._stream is not None:
-            self._stream.stop_stream()
-            self._stream.close()
-            self._stream = None
-        if self._audio is not None:
-            self._audio.terminate()
-            self._audio = None
+        if self._process is not None:
+            self._process.terminate()
+            self._process.wait()
+            self._process = None
