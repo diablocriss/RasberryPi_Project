@@ -24,3 +24,6 @@ Thumbs.db
 *.log
 htmlcov/
 .coverage
+
+# Trained intent classifier (regenerated via `python -m src.intent.train`)
+models/hotel_reception_intent.bin
