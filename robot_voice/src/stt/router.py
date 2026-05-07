@@ -1,5 +1,4 @@
 ﻿from config.settings import Settings
-from stt.deepgram_stt import DeepgramSTT
 from stt.vosk_stt import VoskSTT
 from utils.network import has_internet
 
@@ -12,10 +11,12 @@ class STTRouter:
 
     def _select_engine(self):
         if self.mode == "cloud":
+            from stt.deepgram_stt import DeepgramSTT
             return DeepgramSTT(self.settings)
         if self.mode == "local":
             return VoskSTT(self.settings)
         if self.settings.deepgram_api_key and has_internet():
+            from stt.deepgram_stt import DeepgramSTT
             return DeepgramSTT(self.settings)
         return VoskSTT(self.settings)
 
