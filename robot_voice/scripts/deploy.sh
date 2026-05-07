@@ -1,9 +1,30 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-TARGET="${1:-phuong@192.168.1.66:/home/phuong/robot_voice}"
-ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+HOST="${1:-Pi4phuong.local}"
+USER="${2:-phuong}"
+REMOTE="/home/$USER/robot_voice"
+KEY="$HOME/.ssh/pi4_robot"
+TARGET="$USER@$HOST"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
-ssh "${TARGET%%:*}" "mkdir -p '${TARGET#*:}'"
-scp -r "$ROOT_DIR/src" "$ROOT_DIR/tests" "$ROOT_DIR/scripts" "$ROOT_DIR/configs" "$ROOT_DIR/requirements.txt" "$ROOT_DIR/README.md" "$ROOT_DIR/.env.example" "$TARGET"
-ssh "${TARGET%%:*}" "chmod +x '${TARGET#*:}/scripts/'*.sh"
+SSH="ssh -i $KEY -o StrictHostKeyChecking=no"
+SCP="scp -i $KEY -o StrictHostKeyChecking=no"
+
+echo "[deploy] $TARGET:$REMOTE"
+
+find "$ROOT/src" -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
+
+$SSH "$TARGET" "mkdir -p '$REMOTE'"
+
+for dir in src scripts systemd configs docs; do
+    [ -d "$ROOT/$dir" ] && echo "[deploy] $dir/" && $SCP -r "$ROOT/$dir" "$TARGET:$REMOTE"
+done
+
+for file in requirements.txt requirements-pi.txt README.md; do
+    [ -f "$ROOT/$file" ] && echo "[deploy] $file" && $SCP "$ROOT/$file" "$TARGET:$REMOTE"
+done
+
+$SSH "$TARGET" "find '$REMOTE/scripts' -name '*.sh' -exec chmod +x {} \;"
+
+echo "[deploy] Done."

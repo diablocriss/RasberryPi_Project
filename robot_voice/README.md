@@ -6,6 +6,44 @@ Full target architecture: [../docs/SYSTEM_DESIGN.md](../docs/SYSTEM_DESIGN.md)
 
 I2S wiring diagram: [../docs/I2S_WIRING.md](../docs/I2S_WIRING.md)
 
+## Version 1.1 — MoonShine STT Pipeline
+
+A new fully on-device voice pipeline replaces the old cloud-STT path. Entry point: `src/audio/pipeline_moonshine.py`. Runtime config: `configs/moonshine_config.yaml`.
+
+```text
+INMP441 (I2S) -> arecord 48kHz S32_LE
+              -> RMS VAD (continuous, no wake word)
+              -> MoonShine ONNX STT (offline, English)
+              -> ResponseHandler (FSD keyword match)
+              -> Edge TTS (en-US-AvaMultilingualNeural)
+              -> ffmpeg -> aplay -> MAX98357 (I2S)
+```
+
+Run on the Pi:
+
+```bash
+cd ~/robot_voice/src && ~/robot_voice/.venv/bin/python -m audio.pipeline_moonshine
+```
+
+### Advantages
+
+- **Fully offline STT.** No API keys, no per-request cost, no cloud round-trip latency, no privacy exposure.
+- **No wake word required.** RMS-based VAD listens continuously and triggers on voice; the user can speak immediately.
+- **Mic / speaker share one I2S card without ducking.** Capture is automatically released around each TTS reply, so playback runs at full volume.
+- **Pre-warmed STT model.** MoonShine loads once at startup (~3 s on Pi 4 with cached model); subsequent transcriptions take ~1–2 s on short utterances.
+- **Tunable in config alone.** Volume, voice, rate, VAD thresholds, silence timeout and chunk size all live in `configs/moonshine_config.yaml` — no code changes needed for tuning.
+- **Robust to transient ALSA contention.** `arecord` open retries on "Device or resource busy", and stderr is drained on a background thread so `arecord` cannot stall on a full kernel pipe buffer.
+
+### Disadvantages
+
+- **First-utterance cold start of ~3 s** while the MoonShine ONNX model loads, even with the cache warm.
+- **No streaming partial results.** The pipeline waits for end-of-utterance silence (configurable, currently 0.6 s) before transcribing — short replies still incur that gap.
+- **Mic must be reopened around every TTS reply.** Closing/reopening `arecord` adds ~200–400 ms per turn but is the only way to stop PipeWire from ducking playback on a single shared I2S card.
+- **English-only model bundled.** Other languages require swapping `moonshine.language` in the config and downloading the matching model.
+- **CPU-bound on Pi 4.** STT transcription is the dominant single contributor to per-turn latency; there is no GPU fallback.
+- **Edge TTS still requires internet.** The TTS path uses Microsoft Edge's online voices over HTTPS — for fully offline operation, swap to Piper (older `src/tts/piper_tts.py` path).
+- **Single shared I2S card assumption.** The pause/resume design is specific to a Google VoiceHAT-style soundcard where mic and speaker live on one ALSA card. Boards with separate cards would not need it.
+
 ## Workflows
 
 Text dry-run workflow:

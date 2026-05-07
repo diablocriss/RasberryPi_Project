@@ -1,7 +1,5 @@
 import os
 
-from audio.pipeline import audio_pipeline
-from audio.pipeline_i2s import run_i2s_pipeline
 from comm.uart import UartClient
 from config.settings import Settings
 from config.version import VERSION
@@ -28,6 +26,8 @@ def run_phase1() -> None:
 
 
 def run_hybrid_workflow() -> None:
+    from audio.pipeline import audio_pipeline
+
     print(f"RUN VERSION {VERSION}")
     print("FILE:", os.path.abspath(__file__))
     print("=== ESP32 I2S -> USB CDC Frames -> Pi STT/FSD -> UART JSON ===")
@@ -73,6 +73,8 @@ def run_text_hybrid_workflow() -> None:
 
 
 def main() -> None:
+    from audio.pipeline_i2s import run_i2s_pipeline
+
     workflow = os.getenv("ROBOT_WORKFLOW", "phase1").lower()
     if workflow in {"usb_cdc", "audio", "hybrid"}:
         run_hybrid_workflow()
