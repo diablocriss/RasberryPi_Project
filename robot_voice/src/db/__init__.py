@@ -1,0 +1,1 @@
+"""Booking database bridge package."""

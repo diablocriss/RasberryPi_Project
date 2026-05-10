@@ -19,7 +19,7 @@ Get-ChildItem -Path "$Root\src" -Recurse -Directory -Filter "__pycache__" -Error
 
 Invoke-Expression "ssh $SshOpts $Target `"mkdir -p '$Remote'`""
 
-$Dirs  = @("src", "scripts", "systemd", "configs", "docs")
+$Dirs  = @("src", "scripts", "systemd", "configs", "docs", "tests")
 $Files = @("requirements.txt", "requirements-pi.txt", "README.md")
 
 foreach ($dir in $Dirs) {
