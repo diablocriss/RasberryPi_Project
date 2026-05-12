@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="en" class="layout-menu-fixed layout-compact">
+  <head>
+    <meta charset="utf-8">
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+    <title>Hotel Admin</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Public+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400;1,500;1,600;1,700&display=swap"
+      rel="stylesheet">
+    <link rel="stylesheet" href="/vendor/css/core.css">
+    <script src="/vendor/js/helpers.js"></script>
+  </head>
+  <body>
+    <div class="layout-wrapper layout-content-navbar">
+      <div class="layout-container">
+        <aside id="layout-menu" class="layout-menu menu-vertical menu bg-menu-theme">
+          <div class="app-brand demo">
+            <a href="/" class="app-brand-link">
+              <span class="app-brand-text demo menu-text fw-bold">Hotel</span>
+            </a>
+            <a href="javascript:void(0);" class="layout-menu-toggle menu-link text-large ms-auto">
+              <span class="d-block d-xl-none align-middle">‹</span>
+            </a>
+          </div>
+
+          <div class="menu-inner-shadow"></div>
+
+          <ul class="menu-inner py-1">
+            <li class="menu-item">
+              <a href="/" class="menu-link">
+                <div>Book a Room</div>
+              </a>
+            </li>
+            <li class="menu-item active">
+              <a href="/admin" class="menu-link">
+                <div>Admin</div>
+              </a>
+            </li>
+          </ul>
+        </aside>
+
+        <div class="layout-page">
+          <nav
+            class="layout-navbar container-xxl navbar navbar-expand-xl navbar-detached align-items-center bg-navbar-theme"
+            id="layout-navbar">
+            <div class="layout-menu-toggle navbar-nav align-items-xl-center me-3 me-xl-0 d-xl-none">
+              <a class="nav-item nav-link px-0 me-xl-4" href="javascript:void(0)">
+                <span class="fs-4">☰</span>
+              </a>
+            </div>
+            <div class="navbar-nav-right d-flex align-items-center" id="navbar-collapse">
+              <div class="navbar-nav align-items-center">
+                <span class="nav-item nav-link fw-semibold px-0">Hotel Booking System</span>
+              </div>
+            </div>
+          </nav>
+
+          <div class="content-wrapper">
+            <div class="container-xxl flex-grow-1 container-p-y">
+              <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                  <div>
+                    <h5 class="mb-0">Manage Bookings</h5>
+                    <small class="text-muted">Review and cancel active reservations</small>
+                  </div>
+                  <button class="btn btn-primary btn-sm" id="refresh-btn" type="button">Refresh</button>
+                </div>
+                <div class="card-body px-0">
+                  <div class="alert alert-danger mx-4 d-none" id="admin-error"></div>
+                  <div class="table-responsive text-nowrap">
+                    <table class="table" id="booking-table">
+                      <thead>
+                        <tr>
+                          <th>ID</th>
+                          <th>Guest</th>
+                          <th>Email</th>
+                          <th>Room</th>
+                          <th>Type</th>
+                          <th>Check-in</th>
+                          <th>Check-out</th>
+                          <th>Guests</th>
+                          <th>Booked at</th>
+                          <th>Action</th>
+                        </tr>
+                      </thead>
+                      <tbody class="table-border-bottom-0" id="booking-rows">
+                        <tr>
+                          <td class="text-center text-body-secondary" colspan="10">Loading bookings...</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="content-backdrop fade"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="layout-overlay layout-menu-toggle"></div>
+    </div>
+
+    <script src="/vendor/js/bootstrap.js"></script>
+    <script src="/vendor/js/menu.js"></script>
+    <script>
+      let pwd = '';
+
+      function byId(id) {
+        return document.getElementById(id);
+      }
+
+      function showError(message) {
+        const error = byId('admin-error');
+        error.textContent = message;
+        error.classList.remove('d-none');
+      }
+
+      function hideError() {
+        byId('admin-error').classList.add('d-none');
+      }
+
+      function renderRows(bookings) {
+        const tbody = byId('booking-rows');
+        if (!bookings.length) {
+          tbody.innerHTML = '<tr><td class="text-center text-body-secondary" colspan="10">No active bookings.</td></tr>';
+          return;
+        }
+
+        tbody.innerHTML = bookings.map((booking) => (
+          '<tr>' +
+            '<td>' + booking.booking_id + '</td>' +
+            '<td>' + booking.guest_name + '</td>' +
+            '<td>' + booking.email + '</td>' +
+            '<td>' + booking.room_number + '</td>' +
+            '<td>' + booking.room_type + '</td>' +
+            '<td>' + booking.check_in_date + '</td>' +
+            '<td>' + booking.check_out_date + '</td>' +
+            '<td>' + booking.number_of_guests + '</td>' +
+            '<td>' + new Date(booking.created_at * 1000).toLocaleString() + '</td>' +
+            '<td><button class="btn btn-sm btn-danger" data-booking-id="' + booking.booking_id + '">Cancel</button></td>' +
+          '</tr>'
+        )).join('');
+
+        tbody.querySelectorAll('button[data-booking-id]').forEach((button) => {
+          button.addEventListener('click', async () => {
+            await fetch('/api/bookings/' + button.getAttribute('data-booking-id'), {
+              method: 'DELETE',
+              headers: { 'X-Admin-Password': pwd }
+            });
+            await loadBookings();
+          });
+        });
+      }
+
+      async function loadBookings() {
+        hideError();
+        const response = await fetch('/api/bookings', {
+          headers: { 'X-Admin-Password': pwd }
+        });
+
+        if (response.status === 401) {
+          alert('Wrong password');
+          sessionStorage.removeItem('adminPwd');
+          return;
+        }
+
+        const data = await response.json();
+        if (!response.ok || !data.ok) {
+          showError('Could not load bookings.');
+          return;
+        }
+
+        renderRows(data.data || []);
+      }
+
+      document.addEventListener('DOMContentLoaded', async () => {
+        pwd = sessionStorage.getItem('adminPwd');
+        if (pwd === null) {
+          pwd = window.prompt('Admin password:');
+          sessionStorage.setItem('adminPwd', pwd);
+        }
+
+        byId('refresh-btn').addEventListener('click', loadBookings);
+        await loadBookings();
+      });
+    </script>
+  </body>
+</html>

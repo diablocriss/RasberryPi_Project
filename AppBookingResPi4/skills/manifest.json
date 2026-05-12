@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "skills": [
+    {"name": "api", "description": "Implement and extend REST API handlers in `src/api.c` — routing, JSON parsing, response formatting, and wiring new endpoints into `api_handle()`.", "path": "skills/api/SKILL.md"},
+    {"name": "booking", "description": "Domain logic for creating, reading, updating, and cancelling bookings in `src/booking.c` — including input validation and conflict detection.", "path": "skills/booking/SKILL.md"},
+    {"name": "build", "description": "Build the AppBookingResPi4 binary natively (x86_64) and cross-compile for Raspberry Pi 4 (ARMv7), including the embedded HTML step and Makefile targets.", "path": "skills/build/SKILL.md"},
+    {"name": "deploy-pi", "description": "Cross-compile and deploy the `appbooking-pi` binary to Raspberry Pi 4 targets via `make deploy` / `make deploy2`, and install the systemd service with `scripts/install-service.sh`.", "path": "skills/deploy-pi/SKILL.md"},
+    {"name": "example", "description": "Describe what this skill covers in one or two sentences. This first sentence is", "path": "skills/example/SKILL.md"},
+    {"name": "planner-executor-setup", "description": "Bootstrap the Planner-Executor workflow into any new project so that Claude acts as Planner and GitHub Copilot acts as Executor, with Karpathy principles enforced throughout.", "path": "skills/planner-executor-setup/SKILL.md"},
+    {"name": "storage", "description": "SQLite3 persistence layer in `src/storage.c` — schema, prepared statements, and all booking CRUD operations against the database.", "path": "skills/storage/SKILL.md"},
+    {"name": "web-ui", "description": "Design and edit the embedded web dashboard (`web/index.html`, `web/admin.html`) using the local Sneat admin template as reference, embed vendor CSS/JS assets via xxd, extend `src/web.c` routes, and update Makefile rules.", "path": "skills/web-ui/SKILL.md"}
+  ]
+}

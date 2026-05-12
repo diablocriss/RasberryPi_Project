@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import logging
+import os
 from datetime import datetime
 from pathlib import Path
 import random
@@ -9,6 +10,10 @@ import re
 from typing import Any
 
 logger = logging.getLogger(__name__)
+
+# Default location of the web trainer SQLite DB. Matches the path used by
+# systemd/web-trainer.service. Override with TRAINER_DB_PATH env var.
+_DEFAULT_TRAINER_DB = str(Path(__file__).resolve().parent.parent.parent / "data" / "trainer.db")
 
 INTENT_RESPONSES: dict[str, list[str]] = {
     "greeting": [
@@ -239,6 +244,26 @@ def get_response(intent: str) -> str:
     return random.choice(responses)
 
 
+def _load_responses_from_trainer_db() -> dict[str, list[str]]:
+    """Read response pools from the web trainer's SQLite DB.
+
+    Returns {} on any failure (missing file, import error, sqlite error) so
+    the pipeline silently falls back to the hardcoded INTENT_RESPONSES.
+    """
+    db_path = os.environ.get("TRAINER_DB_PATH", _DEFAULT_TRAINER_DB)
+    if not Path(db_path).exists():
+        return {}
+    try:
+        try:
+            from web_trainer.models import TrainerDB
+        except ModuleNotFoundError:
+            from src.web_trainer.models import TrainerDB  # type: ignore
+        return TrainerDB(db_path=db_path).all_responses()
+    except Exception:
+        logger.exception("Could not load responses from trainer DB %s", db_path)
+        return {}
+
+
 class ResponseHandler:
     """Maps a transcribed guest utterance to a robot reply via FastText."""
 
@@ -268,9 +293,26 @@ class ResponseHandler:
         self._pending_data: dict[str, Any] = {}
         self._missing_fields: list[str] = []
 
-        missing = [label for label in self._classifier.labels if label not in INTENT_RESPONSES]
+        # Merge: hardcoded defaults first, DB pools override per-intent so
+        # edits in the web trainer take effect on next pipeline restart.
+        # An intent with zero rows in the DB falls back to defaults instead
+        # of going silent.
+        db_pools = _load_responses_from_trainer_db()
+        self._responses: dict[str, list[str]] = dict(INTENT_RESPONSES)
+        overridden: list[str] = []
+        for name, pool in db_pools.items():
+            if pool:
+                self._responses[name] = pool
+                overridden.append(name)
+        if overridden:
+            logger.info("ResponseHandler: %d intent(s) using DB responses: %s",
+                        len(overridden), ", ".join(sorted(overridden)))
+        else:
+            logger.info("ResponseHandler: using hardcoded INTENT_RESPONSES (no DB override)")
+
+        missing = [label for label in self._classifier.labels if label not in self._responses]
         if missing:
-            raise RuntimeError(f"INTENT_RESPONSES is missing replies for: {missing}")
+            raise RuntimeError(f"Response pools missing for: {missing}")
 
     def process(self, text: str) -> str:
         if not text or not text.strip():
@@ -281,6 +323,17 @@ class ResponseHandler:
         confidence = result["confidence"]
 
         logger.info("\033[36mINTENT %s @ %.2f for %r\033[0m", intent, confidence, text)
+
+        # Stay in a pending multi-turn flow only if the new utterance is a
+        # plausible continuation (same flow, an identity reply, a yes/no, or
+        # unparseable). Anything else is a topic change — drop the pending
+        # state so the new intent reaches its own handler.
+        if self._pending_action and not self._is_continuation_of_pending(intent):
+            logger.info(
+                "Topic change: dropping pending '%s' for new intent '%s'",
+                self._pending_action, intent,
+            )
+            self._reset_pending()
 
         if self._pending_action:
             return self._handle_pending_action(text, intent)
@@ -294,8 +347,19 @@ class ResponseHandler:
             return self._lookup_booking(text)
         return self._random_response(intent)
 
+    _CONTINUATION_INTENTS = {"identity", "confirm_yes", "confirm_no", "unknown"}
+    _PENDING_TO_TRIGGER = {
+        "create_booking": "check_in",
+        "cancel_booking": "check_out",
+        "check_availability": "room_inquiry",
+    }
+
+    def _is_continuation_of_pending(self, intent: str) -> bool:
+        trigger = self._PENDING_TO_TRIGGER.get(self._pending_action or "")
+        return intent == trigger or intent in self._CONTINUATION_INTENTS
+
     def _random_response(self, intent: str) -> str:
-        pool = INTENT_RESPONSES.get(intent, INTENT_RESPONSES["unknown"])
+        pool = self._responses.get(intent) or self._responses["unknown"]
         if intent == self._last_intent and len(pool) > 1:
             pool = [reply for reply in pool if reply != self._last_response] or pool
         response = random.choice(pool)

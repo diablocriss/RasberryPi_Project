@@ -1,0 +1,20 @@
+# Build artifacts
+build/
+appbooking
+appbooking-pi
+
+# Auto-generated from web/index.html
+src/index_html.h
+
+# SQLite database files
+*.db
+*.db-shm
+*.db-wal
+
+# Local deploy config (may contain credentials)
+local.mk
+
+# Backup / temp files
+*.bak
+*~
+/tmp/
