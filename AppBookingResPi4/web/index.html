@@ -1,0 +1,318 @@
+<!doctype html>
+<html lang="en" class="layout-menu-fixed layout-compact">
+  <head>
+    <meta charset="utf-8">
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+    <title>Hotel Booking</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Public+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400;1,500;1,600;1,700&display=swap"
+      rel="stylesheet">
+    <link rel="stylesheet" href="/vendor/css/core.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <script src="/vendor/js/helpers.js"></script>
+  </head>
+  <body>
+    <div class="layout-wrapper layout-content-navbar">
+      <div class="layout-container">
+        <aside id="layout-menu" class="layout-menu menu-vertical menu bg-menu-theme">
+          <div class="app-brand demo">
+            <a href="/" class="app-brand-link">
+              <span class="app-brand-text demo menu-text fw-bold">Hotel</span>
+            </a>
+            <a href="javascript:void(0);" class="layout-menu-toggle menu-link text-large ms-auto">
+              <span class="d-block d-xl-none align-middle">‹</span>
+            </a>
+          </div>
+
+          <div class="menu-inner-shadow"></div>
+
+          <ul class="menu-inner py-1">
+            <li class="menu-item active">
+              <a href="/" class="menu-link">
+                <div>Book a Room</div>
+              </a>
+            </li>
+            <li class="menu-item">
+              <a href="/admin" class="menu-link">
+                <div>Admin</div>
+              </a>
+            </li>
+          </ul>
+        </aside>
+
+        <div class="layout-page">
+          <nav
+            class="layout-navbar container-xxl navbar navbar-expand-xl navbar-detached align-items-center bg-navbar-theme"
+            id="layout-navbar">
+            <div class="layout-menu-toggle navbar-nav align-items-xl-center me-3 me-xl-0 d-xl-none">
+              <a class="nav-item nav-link px-0 me-xl-4" href="javascript:void(0)">
+                <span class="fs-4">☰</span>
+              </a>
+            </div>
+            <div class="navbar-nav-right d-flex align-items-center" id="navbar-collapse">
+              <div class="navbar-nav align-items-center">
+                <span class="nav-item nav-link fw-semibold px-0">Hotel Booking System</span>
+              </div>
+            </div>
+          </nav>
+
+          <div class="content-wrapper">
+            <div class="container-xxl flex-grow-1 container-p-y">
+              <div class="card mb-4" id="section-availability">
+                <div class="card-header">
+                  <h5 class="mb-0">Check Room Availability</h5>
+                </div>
+                <div class="card-body">
+                  <div class="row g-3 align-items-end">
+                    <div class="col-md-4">
+                      <label class="form-label" for="ci">Check-in</label>
+                      <input class="form-control" id="ci" type="text" placeholder="YYYY-MM-DD">
+                    </div>
+                    <div class="col-md-4">
+                      <label class="form-label" for="co">Check-out</label>
+                      <input class="form-control" id="co" type="text" placeholder="YYYY-MM-DD">
+                    </div>
+                    <div class="col-md-4">
+                      <label class="form-label d-block">Room type</label>
+                      <div class="form-check form-check-inline">
+                        <input class="form-check-input" type="radio" name="room-type" id="filter-all" value="all" checked>
+                        <label class="form-check-label" for="filter-all">All</label>
+                      </div>
+                      <div class="form-check form-check-inline">
+                        <input class="form-check-input" type="radio" name="room-type" id="filter-standard" value="standard">
+                        <label class="form-check-label" for="filter-standard">Standard</label>
+                      </div>
+                      <div class="form-check form-check-inline">
+                        <input class="form-check-input" type="radio" name="room-type" id="filter-deluxe" value="deluxe">
+                        <label class="form-check-label" for="filter-deluxe">Deluxe</label>
+                      </div>
+                    </div>
+                    <div class="col-12">
+                      <button class="btn btn-primary" id="btn-check" type="button">Check Availability</button>
+                    </div>
+                  </div>
+                  <div class="alert alert-danger mt-3 d-none" id="availability-error"></div>
+                  <div class="row g-4 mt-1" id="availability-results"></div>
+                </div>
+              </div>
+
+              <div class="card" id="section-form">
+                <div class="card-header">
+                  <h5 class="mb-0">Make a Reservation</h5>
+                </div>
+                <div class="card-body">
+                  <div class="alert alert-danger d-none" id="form-error"></div>
+                  <form id="booking-form">
+                    <div class="row g-6">
+                      <div class="col-md-6">
+                        <label class="form-label" for="room-sel">Room</label>
+                        <select class="form-select" id="room-sel" required></select>
+                      </div>
+                      <div class="col-md-6">
+                        <label class="form-label" for="guest-name">Full name</label>
+                        <input class="form-control" id="guest-name" type="text" required>
+                      </div>
+                      <div class="col-md-6">
+                        <label class="form-label" for="guest-email">Email</label>
+                        <input class="form-control" id="guest-email" type="email" required>
+                      </div>
+                      <div class="col-md-2">
+                        <label class="form-label" for="guest-count">Guests</label>
+                        <input class="form-control" id="guest-count" type="number" min="1" value="1" required>
+                      </div>
+                      <div class="col-md-2">
+                        <label class="form-label" for="book-ci">Check-in</label>
+                        <input class="form-control" id="book-ci" type="text" placeholder="YYYY-MM-DD" required>
+                      </div>
+                      <div class="col-md-2">
+                        <label class="form-label" for="book-co">Check-out</label>
+                        <input class="form-control" id="book-co" type="text" placeholder="YYYY-MM-DD" required>
+                      </div>
+                      <div class="col-12">
+                        <label class="form-label" for="guest-request">Special request</label>
+                        <textarea class="form-control" id="guest-request" rows="3" placeholder="Optional"></textarea>
+                      </div>
+                      <div class="col-12">
+                        <button class="btn btn-success" type="submit">Submit booking</button>
+                      </div>
+                    </div>
+                  </form>
+                </div>
+              </div>
+
+              <div class="alert alert-success mt-4 d-none" id="section-thanks">
+                <h5 class="alert-heading mb-1">Thank you for your booking.</h5>
+                <p class="mb-0">Your booking reference is <strong id="booking-id-text"></strong>.</p>
+              </div>
+            </div>
+            <div class="content-backdrop fade"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="layout-overlay layout-menu-toggle"></div>
+    </div>
+
+    <script src="/vendor/js/bootstrap.js"></script>
+    <script src="/vendor/js/menu.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script>
+      let rooms = [];
+
+      function byId(id) {
+        return document.getElementById(id);
+      }
+
+      function showError(id, message) {
+        const el = byId(id);
+        el.textContent = message;
+        el.classList.remove('d-none');
+      }
+
+      function hideError(id) {
+        byId(id).classList.add('d-none');
+      }
+
+      function currentFilter() {
+        const selected = document.querySelector('input[name="room-type"]:checked');
+        return selected ? selected.value : 'all';
+      }
+
+      function roomLabel(room) {
+        return room.room_number + ' - ' + room.room_type + ' - ' + room.description;
+      }
+
+      function renderRoomOptions() {
+        const select = byId('room-sel');
+        const options = ['<option value="">Select a room</option>'].concat(
+          rooms.map((room) => '<option value="' + room.room_id + '">' + roomLabel(room) + '</option>')
+        );
+        select.innerHTML = options.join('');
+      }
+
+      function renderAvailabilityCards(occupiedIds) {
+        const filter = currentFilter();
+        const occupied = new Set(occupiedIds);
+        const cards = rooms
+          .filter((room) => filter === 'all' || room.room_type === filter)
+          .map((room) => {
+            const available = !occupied.has(room.room_id);
+            const classes = available ? 'border-success' : 'border-secondary';
+            const badge = available ? 'bg-label-success' : 'bg-label-secondary';
+            const buttonAttrs = available ? 'data-room-id="' + room.room_id + '"' : '';
+            const action = available ? 'Tap to choose this room' : 'Unavailable for selected dates';
+            return (
+              '<div class="col-md-6 col-xl-4">' +
+                '<button type="button" class="card h-100 w-100 text-start ' + classes + '" ' + buttonAttrs + '>' +
+                  '<div class="card-body">' +
+                    '<span class="badge ' + badge + ' mb-3">' + (available ? 'Available' : 'Occupied') + '</span>' +
+                    '<h5 class="card-title mb-1">Room ' + room.room_number + '</h5>' +
+                    '<p class="mb-1 text-capitalize">' + room.room_type + '</p>' +
+                    '<p class="card-text small mb-3">' + room.description + '</p>' +
+                    '<small class="text-muted">' + action + '</small>' +
+                  '</div>' +
+                '</button>' +
+              '</div>'
+            );
+          });
+        byId('availability-results').innerHTML = cards.join('') || '<div class="col-12"><div class="alert alert-secondary mb-0">No rooms match this filter.</div></div>';
+
+        document.querySelectorAll('#availability-results [data-room-id]').forEach((button) => {
+          button.addEventListener('click', () => {
+            byId('room-sel').value = button.getAttribute('data-room-id');
+          });
+        });
+      }
+
+      async function loadRooms() {
+        const response = await fetch('/api/rooms');
+        const data = await response.json();
+        rooms = data.data || [];
+        renderRoomOptions();
+      }
+
+      async function checkAvailability() {
+        hideError('availability-error');
+        const ci = byId('ci').value;
+        const co = byId('co').value;
+
+        if (!ci || !co) {
+          showError('availability-error', 'Please choose both check-in and check-out dates.');
+          return;
+        }
+
+        try {
+          const [roomsRes, availabilityRes] = await Promise.all([
+            fetch('/api/rooms'),
+            fetch('/api/availability?check_in=' + encodeURIComponent(ci) + '&check_out=' + encodeURIComponent(co))
+          ]);
+          const roomsJson = await roomsRes.json();
+          const availabilityJson = await availabilityRes.json();
+
+          rooms = roomsJson.data || [];
+          renderRoomOptions();
+          renderAvailabilityCards((availabilityJson.data && availabilityJson.data.occupied) || []);
+        } catch (error) {
+          showError('availability-error', 'Unable to check availability right now.');
+        }
+      }
+
+      async function submitBooking(event) {
+        event.preventDefault();
+        hideError('form-error');
+
+        const payload = {
+          guest_name: byId('guest-name').value.trim(),
+          email: byId('guest-email').value.trim(),
+          check_in: byId('book-ci').value,
+          check_out: byId('book-co').value,
+          guests: Number(byId('guest-count').value),
+          room_id: Number(byId('room-sel').value)
+        };
+
+        try {
+          const response = await fetch('/api/book', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+          const data = await response.json();
+
+          if (response.status === 409) {
+            showError('form-error', 'That room is already booked for those dates.');
+            return;
+          }
+          if (!response.ok || !data.ok) {
+            showError('form-error', 'We could not complete your booking.');
+            return;
+          }
+
+          byId('section-form').classList.add('d-none');
+          byId('section-thanks').classList.remove('d-none');
+          byId('booking-id-text').textContent = data.data.booking_id;
+        } catch (error) {
+          showError('form-error', 'We could not complete your booking.');
+        }
+      }
+
+      document.addEventListener('DOMContentLoaded', async () => {
+        flatpickr('#ci', { dateFormat: 'Y-m-d' });
+        flatpickr('#co', { dateFormat: 'Y-m-d' });
+        flatpickr('#book-ci', { dateFormat: 'Y-m-d' });
+        flatpickr('#book-co', { dateFormat: 'Y-m-d' });
+
+        document.querySelectorAll('input[name="room-type"]').forEach((radio) => {
+          radio.addEventListener('change', () => renderAvailabilityCards([]));
+        });
+        byId('btn-check').addEventListener('click', checkAvailability);
+        byId('booking-form').addEventListener('submit', submitBooking);
+
+        await loadRooms();
+      });
+    </script>
+  </body>
+</html>

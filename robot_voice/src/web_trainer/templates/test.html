@@ -1,0 +1,137 @@
+{% extends "base.html" %}
+{% block title %}Test Intent{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Test Intent</h1>
+    <p class="page-subtitle">Test the trained classifier against single or multiple inputs</p>
+  </div>
+</div>
+
+<!-- ── Single Test ── -->
+<div class="card mb-2">
+  <div class="card-header"><span class="card-title">✓ Single Test</span></div>
+  <div class="input-row">
+    <input type="text" id="testInput" placeholder="Enter text to test…"
+           onkeydown="if(event.key==='Enter')runSingleTest()" />
+    <button class="btn btn-primary" onclick="runSingleTest()">Test</button>
+  </div>
+
+  <div class="test-result" id="singleResult">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem;">
+      <span style="font-size:.78rem;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);">Result</span>
+      <span class="badge" id="singleBadge"></span>
+    </div>
+    <div class="result-intent" id="singleIntent">—</div>
+    <div class="result-confidence mt-1">Confidence: <strong id="singleConf">—</strong></div>
+    <div class="conf-bar mt-1"><div class="conf-fill" id="singleConfBar" style="width:0%"></div></div>
+    <div id="allScores" class="mt-2" style="display:none;">
+      <div style="font-size:.78rem;font-weight:600;color:var(--text-muted);margin-bottom:.4rem;">All scores</div>
+      <div id="allScoresList" style="display:flex;flex-wrap:wrap;gap:.35rem;"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Batch Test ── -->
+<div class="card" id="batch">
+  <div class="card-header"><span class="card-title">≡ Batch Test</span></div>
+  <div class="form-group">
+    <label for="batchInput">Paste multiple lines (one per test)</label>
+    <textarea id="batchInput" placeholder="hello&#10;i want to check in&#10;where is the pool&#10;what is the wifi password"></textarea>
+  </div>
+  <button class="btn btn-primary" onclick="runBatchTest()">Run Batch Test</button>
+
+  <div id="batchResults" class="mt-2" style="display:none;">
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>#</th><th>Text</th><th>Intent</th><th>Confidence</th></tr>
+        </thead>
+        <tbody id="batchTbody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function runSingleTest() {
+  const text = document.getElementById('testInput').value.trim();
+  if(!text) return;
+  const btn = document.querySelector('.card .btn-primary');
+  btn.textContent = '…'; btn.disabled = true;
+  try {
+    const r = await fetch('/api/test/single', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({text})
+    });
+    if(!r.ok) { const e=await r.json(); showToast(e.error||'Error','error'); return; }
+    const d = await r.json();
+    const conf = d.confidence;
+    const pct = Math.round(conf*100);
+
+    document.getElementById('singleResult').classList.add('show');
+    document.getElementById('singleIntent').textContent = d.intent;
+    document.getElementById('singleConf').textContent = `${(conf*100).toFixed(1)}%`;
+    document.getElementById('singleConfBar').style.width = pct+'%';
+
+    const badge = document.getElementById('singleBadge');
+    badge.textContent = conf>=0.8 ? 'High' : conf>=0.5 ? 'Medium' : 'Low';
+    badge.className = `badge ${conf>=0.8?'badge-completed':conf>=0.5?'badge-running':'badge-failed'}`;
+
+    /* all scores */
+    if(d.all_scores && Object.keys(d.all_scores).length>1) {
+      const list = document.getElementById('allScoresList');
+      list.innerHTML = '';
+      const sorted = Object.entries(d.all_scores).sort((a,b)=>b[1]-a[1]).slice(0,6);
+      sorted.forEach(([intent,score]) => {
+        const pct2 = (score*100).toFixed(1);
+        const chip = document.createElement('span');
+        chip.className = 'badge badge-phrases';
+        chip.style.fontSize = '.72rem';
+        chip.textContent = `${intent}: ${pct2}%`;
+        list.appendChild(chip);
+      });
+      document.getElementById('allScores').style.display = 'block';
+    }
+  } catch(e) { showToast('Network error','error'); }
+  finally { btn.textContent = 'Test'; btn.disabled = false; }
+}
+
+async function runBatchTest() {
+  const raw = document.getElementById('batchInput').value;
+  const texts = raw.split('\n').map(s=>s.trim()).filter(Boolean);
+  if(!texts.length) return showToast('Enter at least one line','error');
+
+  try {
+    const r = await fetch('/api/test/batch', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({texts})
+    });
+    if(!r.ok) { const e=await r.json(); showToast(e.error||'Error','error'); return; }
+    const results = await r.json();
+
+    const tbody = document.getElementById('batchTbody');
+    tbody.innerHTML = '';
+    results.forEach((row,i) => {
+      const conf = row.confidence;
+      const cls = conf>=0.8?'td-high':conf>=0.5?'td-mid':'td-low';
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td>${i+1}</td>
+        <td>${escHtml(row.text)}</td>
+        <td><strong>${escHtml(row.intent)}</strong></td>
+        <td class="td-conf ${cls}">${(conf*100).toFixed(1)}%</td>`;
+      tbody.appendChild(tr);
+    });
+    document.getElementById('batchResults').style.display = 'block';
+    showToast(`Tested ${results.length} phrases`,'success');
+  } catch(e) { showToast('Network error','error'); }
+}
+
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+</script>
+{% endblock %}

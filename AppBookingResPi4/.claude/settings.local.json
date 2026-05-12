@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(chmod +x *)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Bash(./scripts/load_skill.sh api *)",
+      "Bash(./scripts/load_skill.sh storage *)",
+      "Bash(./scripts/load_skill.sh build *)",
+      "Bash(./scripts/load_skill.sh web-ui *)",
+      "Bash(make clean *)",
+      "Bash(make)",
+      "Bash(./appbooking -p 8080 -d /tmp/sneat_test.db)",
+      "Bash(curl -s http://localhost:8080/)",
+      "Bash(curl -s http://localhost:8080/admin)",
+      "Bash(curl -si http://localhost:8080/vendor/css/core.css)",
+      "Bash(curl -si http://localhost:8080/vendor/js/bootstrap.js)",
+      "Bash(kill %1)",
+      "Bash(curl -si http://localhost:8080/)"
+    ]
+  }
+}

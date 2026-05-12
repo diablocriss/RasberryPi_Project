@@ -1,14 +1,16 @@
-"""MoonShine voice pipeline: VAD → STT → response → TTS."""
+"""MoonShine voice pipeline: VAD -> STT -> response -> TTS."""
 
 import logging
-import time
+import os
 from pathlib import Path
+import time
 
 import yaml
 
 logger = logging.getLogger(__name__)
 
 _DEFAULT_CONFIG = Path(__file__).parent.parent.parent / "configs" / "moonshine_config.yaml"
+_DEFAULT_BOOKING_ROOT = Path.home() / "AppBookingResPi4"
 
 
 def _load_config(path: Path) -> dict:
@@ -19,22 +21,32 @@ def _load_config(path: Path) -> dict:
 class PipelineOrchestrator:
     def __init__(self, config: dict) -> None:
         from audio.wake_word import AudioCapture
+        from core.db_worker import DBWorker
         from core.response_handler import ResponseHandler
         from stt.moonshine_stt import MoonShineSTT
         from tts.tts_engine import TTSEngine
 
         self._capture = AudioCapture(config)
         self._stt = MoonShineSTT(config)
-        self._response = ResponseHandler()
+        self._db_worker = None
+
+        lib_path = Path(os.getenv("ROBOT_BOOKING_LIB", str(_DEFAULT_BOOKING_ROOT / "libbooking.so"))).expanduser()
+        db_path = Path(os.getenv("ROBOT_BOOKING_DB", str(_DEFAULT_BOOKING_ROOT / "hotel.db"))).expanduser()
+        if lib_path.exists():
+            try:
+                self._db_worker = DBWorker(lib_path, db_path)
+            except Exception:
+                logger.exception("Booking DB worker disabled")
+        else:
+            logger.info("Booking DB worker disabled; shared library not found at %s", lib_path)
+
+        self._response = ResponseHandler(db_worker=self._db_worker)
         self._tts = TTSEngine(config)
 
-        # Pre-warm MoonShine so the first transcription doesn't pay the
-        # ~5–10s lazy-load cost mid-conversation.
         self._stt._load()
 
     def _speak(self, text: str) -> None:
-        """Pause the mic while TTS plays — the I2S card is shared, so
-        a live arecord attenuates aplay output."""
+        """Pause the mic while TTS plays because the I2S card is shared."""
         self._capture.pause()
         try:
             self._tts.say(text)
@@ -48,18 +60,13 @@ class PipelineOrchestrator:
             self._speak("Hello, I am robot assistant, how can I help?")
 
             while True:
-                logger.info("Listening…")
-
-                # ── 1. Wait for voice, record utterance ───────────────────
+                logger.info("Listening...")
                 audio = self._capture.record_utterance()
-                # Start the "Total" timer AFTER recording so it measures
-                # only post-record processing (STT + response + TTS).
                 t_rec = time.perf_counter()
 
                 if len(audio) == 0:
                     continue
 
-                # ── 2. Transcribe ─────────────────────────────────────────
                 text = self._stt.transcribe(audio)
                 t_stt = time.perf_counter()
                 logger.info("\033[33mSTT %.3fs: %r\033[0m", t_stt - t_rec, text)
@@ -68,14 +75,15 @@ class PipelineOrchestrator:
                     logger.info("No speech recognised, back to listening.")
                     continue
 
-                # ── 3. Respond ────────────────────────────────────────────
                 reply = self._response.process(text)
                 logger.info("Reply: %r", reply)
-
-                # ── 4. Speak ──────────────────────────────────────────────
                 self._speak(reply)
                 t_end = time.perf_counter()
                 logger.info("Total: %.3fs", t_end - t_rec)
+
+    def close(self) -> None:
+        if self._db_worker is not None:
+            self._db_worker.shutdown()
 
 
 def run_moonshine_pipeline(config_path: Path | None = None) -> None:
@@ -85,6 +93,8 @@ def run_moonshine_pipeline(config_path: Path | None = None) -> None:
         pipeline.run()
     except KeyboardInterrupt:
         logger.info("Shutdown.")
+    finally:
+        pipeline.close()
 
 
 if __name__ == "__main__":

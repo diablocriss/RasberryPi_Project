@@ -1,0 +1,468 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<!-- ═══ TOP ROW: Intent List + Inline Editor ═══ -->
+<div class="dash-grid">
+
+  <!-- ── Intent List Panel ── -->
+  <div class="card" style="overflow:hidden;display:flex;flex-direction:column;">
+    <div class="panel-header">
+      Intents (<span id="totalCount">{{ intents|length }}</span>)
+    </div>
+    <div class="intent-search-row">
+      <input class="intent-search" id="intentSearch" placeholder="Search intent…" oninput="filterIntents(this.value)"/>
+      <button class="btn btn-primary btn-sm" onclick="openModal()">+ Add Intent</button>
+    </div>
+    <div class="intent-list" id="intentList">
+      {% set colors = ['#10b981','#6366f1','#f59e0b','#ef4444','#3b82f6','#8b5cf6','#06b6d4','#ec4899','#14b8a6','#f97316','#84cc16','#a855f7','#0ea5e9','#eab308','#64748b'] %}
+      {% for intent in intents %}
+      <div class="intent-item" data-id="{{ intent.id }}" data-name="{{ intent.name|lower }}"
+           onclick="loadEditor({{ intent.id }}, '{{ intent.name }}')">
+        <span class="intent-dot" style="background:{{ colors[loop.index0 % colors|length] }}"></span>
+        <span class="intent-name">{{ intent.name }}</span>
+        <span class="intent-count">{{ intent.phrase_count }}</span>
+        <span class="intent-menu" title="Options">⋮</span>
+      </div>
+      {% endfor %}
+    </div>
+    <div class="intent-pagination" id="intentPagination" style="display:none;">
+      <button class="page-btn" id="prevPage" onclick="changePage(-1)">‹</button>
+      <span id="pageIndicator">1 / 1</span>
+      <button class="page-btn" id="nextPage" onclick="changePage(1)">›</button>
+    </div>
+  </div>
+
+  <!-- ── Inline Editor Panel ── -->
+  <div class="card" style="overflow:hidden;display:flex;flex-direction:column;min-height:480px;">
+    <!-- placeholder when no intent selected -->
+    <div id="editorPlaceholder" style="flex:1;display:flex;align-items:center;justify-content:center;flex-direction:column;color:var(--text-muted);gap:.5rem;">
+      <div style="font-size:2.5rem;">🧠</div>
+      <div style="font-weight:500;">Select an intent to edit</div>
+      <div style="font-size:.78rem;">Click any intent from the list on the left</div>
+    </div>
+
+    <!-- editor (hidden until intent selected) -->
+    <div id="editorPanel" class="hidden" style="flex:1;display:flex;flex-direction:column;overflow:hidden;">
+      <div class="editor-header">
+        <span class="editor-title">Edit Intent: <strong id="editorIntentName">—</strong></span>
+        <div style="display:flex;gap:.5rem;">
+          <button class="btn btn-danger btn-sm" onclick="deleteCurrentIntent()">🗑 Delete Intent</button>
+          <button class="btn btn-primary btn-sm" onclick="saveEditorOptions()">💾 Save Changes</button>
+        </div>
+      </div>
+      <div class="editor-body" style="overflow-y:auto;flex:1;">
+        <!-- LEFT: name + phrases + responses -->
+        <div>
+          <div class="form-group mb-1">
+            <label class="field-label">Intent Name</label>
+            <input class="field-input" type="text" id="edIntentName" placeholder="intent_name"/>
+          </div>
+          <div class="form-group mb-1">
+            <label class="field-label">Description (optional)</label>
+            <input class="field-input" type="text" id="edDescription" placeholder="Describe this intent…"/>
+          </div>
+
+          <div class="section-title-row mt-1">
+            <span class="section-title">Training Phrases (<span id="edPhraseCount">0</span>)</span>
+          </div>
+          <div class="phrase-add-row">
+            <input class="field-input" type="text" id="edPhraseInput" placeholder="Enter new training phrase…"
+                   onkeydown="if(event.key==='Enter')edAddPhrase()"/>
+            <button class="btn btn-primary btn-sm" onclick="edAddPhrase()">Add Phrase</button>
+          </div>
+          <div class="phrase-list" id="edPhraseList"></div>
+          <a class="view-all-link" id="edViewAllPhrases" href="#" onclick="return false;">View all phrases</a>
+
+          <div class="section-title-row mt-2">
+            <span class="section-title">Responses (<span id="edRespCount">0</span>)</span>
+          </div>
+          <div class="phrase-add-row">
+            <input class="field-input" type="text" id="edRespInput" placeholder="Enter new response…"
+                   onkeydown="if(event.key==='Enter')edAddResp()"/>
+            <button class="btn btn-success btn-sm" onclick="edAddResp()">Add Response</button>
+          </div>
+          <div class="phrase-list" id="edRespList"></div>
+        </div>
+
+        <!-- RIGHT: options -->
+        <div>
+          <div style="background:var(--body-bg);border-radius:8px;padding:.9rem;border:1px solid var(--border);">
+            <div class="toggle-wrap">
+              <div>
+                <div class="toggle-label">Random Response</div>
+                <div class="toggle-sub">Randomly select a response when this intent is matched.</div>
+              </div>
+              <label class="toggle-switch">
+                <input type="checkbox" id="edRandomToggle" checked/>
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+          </div>
+
+          <div class="form-group mt-2">
+            <label class="field-label">Fallback Response (optional)</label>
+            <input class="field-input" type="text" id="edFallback" placeholder="I can't help with that right now."/>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ BOTTOM ROW: Training Config + Progress + Logs ═══ -->
+<div class="bottom-grid">
+
+  <!-- ── Training Configuration ── -->
+  <div class="card">
+    <div class="panel-header">Training Configuration</div>
+    <div class="panel-body">
+      <div class="form-group">
+        <label class="form-label">Model Name</label>
+        <input type="text" id="cfgModelName" value="intent_model"/>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Epochs</label>
+          <select id="cfgEpochs">
+            <option>10</option><option selected>25</option><option>50</option><option>100</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Learning Rate</label>
+          <input type="number" id="cfgLr" value="0.1" min="0.001" max="1" step="0.01"/>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Word N-grams</label>
+          <input type="number" id="cfgNgrams" value="2" min="1" max="5"/>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Min Word Count</label>
+          <input type="number" id="cfgMinCount" value="1" min="1"/>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Thread</label>
+        <input type="number" id="cfgThread" value="4" min="1" max="16"/>
+      </div>
+      <button class="btn btn-train w-full" id="trainBtn" onclick="startTraining()">
+        ▶ Train Model
+      </button>
+      <a href="#" style="display:block;text-align:center;font-size:.75rem;color:var(--primary);margin-top:.6rem;"
+         onclick="return false;">Advanced Options ▾</a>
+    </div>
+  </div>
+
+  <!-- ── Training Progress ── -->
+  <div class="card">
+    <div class="panel-header">
+      Training Progress
+      <span class="badge badge-gray" id="trainBadge" style="display:none;"></span>
+    </div>
+    <div class="progress-box">
+      <div class="train-status-text" id="trainStatusText" style="display:none;"></div>
+      <div class="prog-bar-wrap">
+        <div class="prog-bar-fill" id="progFill" style="width:0%"></div>
+      </div>
+      <div class="prog-stats-grid">
+        <div class="prog-stat"><div class="prog-stat-label">Epochs</div><div class="prog-stat-value" id="pEpoch">—</div></div>
+        <div class="prog-stat"><div class="prog-stat-label">Accuracy</div><div class="prog-stat-value" id="pAcc">—</div></div>
+        <div class="prog-stat"><div class="prog-stat-label">Training Time</div><div class="prog-stat-value" id="pTime">—</div></div>
+        <div class="prog-stat"><div class="prog-stat-label">Total Samples</div><div class="prog-stat-value" id="pSamples">—</div></div>
+      </div>
+      <div id="trainDoneMsg" style="display:none;">
+        <div class="train-done-msg">✅ Training Completed Successfully!</div>
+        <div class="text-muted" style="font-size:.72rem;" id="trainSavedPath"></div>
+        <div class="train-timestamp" id="trainTimestamp"></div>
+      </div>
+    </div>
+    <div style="padding:.75rem 1rem;border-top:1px solid var(--border);" id="reloadSection" style="display:none;">
+      <button class="btn btn-success w-full" onclick="reloadModel()">🔄 Reload Model into Pipeline</button>
+    </div>
+  </div>
+
+  <!-- ── Logs ── -->
+  <div class="card">
+    <div class="panel-header">
+      Logs
+      <a href="{{ url_for('trainer.logs') }}" style="font-size:.75rem;color:var(--primary);text-decoration:none;">View Full Logs</a>
+    </div>
+    <div style="padding:.75rem;">
+      <div class="log-panel" id="dashLogPanel">
+        <div class="log-row"><span class="log-text" style="color:#3b4048;">No training runs yet.</span></div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- .bottom-grid -->
+{% endblock %}
+
+{% block scripts %}
+<script>
+/* ═══ Intent list pagination & filter ═══ */
+const ITEMS_PER_PAGE = 12;
+let _page = 1;
+let _filteredIds = [];
+let _allItems = [];
+
+(function initList() {
+  _allItems = Array.from(document.querySelectorAll('#intentList .intent-item'));
+  refreshPagination();
+})();
+
+function filterIntents(q) {
+  const s = q.toLowerCase().trim();
+  _allItems.forEach(el => {
+    el.style.display = (!s || el.dataset.name.includes(s)) ? '' : 'none';
+  });
+  _filteredIds = _allItems.filter(el=>el.style.display!=='none').map(el=>+el.dataset.id);
+  _page = 1;
+  refreshPagination();
+}
+
+function refreshPagination() {
+  const visible = _allItems.filter(el=>el.style.display!=='none');
+  const total = visible.length;
+  const pages = Math.ceil(total/ITEMS_PER_PAGE);
+  const pag = document.getElementById('intentPagination');
+  pag.style.display = pages>1 ? 'flex' : 'none';
+  document.getElementById('pageIndicator').textContent = `${_page} / ${pages||1}`;
+  document.getElementById('prevPage').disabled = _page<=1;
+  document.getElementById('nextPage').disabled = _page>=pages;
+  visible.forEach((el,i)=>{
+    el.style.display = (i>=(_page-1)*ITEMS_PER_PAGE && i<_page*ITEMS_PER_PAGE) ? '' : 'none';
+  });
+}
+
+function changePage(dir) { _page += dir; refreshPagination(); }
+
+/* ═══ Inline editor ═══ */
+let _currentId = null;
+let _phraseCount = 0;
+let _respCount = 0;
+
+async function loadEditor(id, name) {
+  // highlight active
+  document.querySelectorAll('.intent-item').forEach(el=>el.classList.remove('active'));
+  document.querySelector(`.intent-item[data-id="${id}"]`)?.classList.add('active');
+
+  _currentId = id;
+  const r = await fetch(`/api/intents/${id}`);
+  if(!r.ok) return showToast('Failed to load intent','error');
+  const d = await r.json();
+
+  document.getElementById('editorPlaceholder').classList.add('hidden');
+  document.getElementById('editorPanel').classList.remove('hidden');
+
+  document.getElementById('editorIntentName').textContent = d.name;
+  document.getElementById('edIntentName').value = d.name;
+  document.getElementById('edDescription').value = '';
+  document.getElementById('edFallback').value = d.fallback_response || '';
+  document.getElementById('edRandomToggle').checked = !!d.random_response;
+
+  _phraseCount = d.phrases.length;
+  _respCount = d.responses.length;
+  document.getElementById('edPhraseCount').textContent = _phraseCount;
+  document.getElementById('edRespCount').textContent = _respCount;
+
+  // phrases
+  const pl = document.getElementById('edPhraseList');
+  pl.innerHTML = '';
+  d.phrases.slice(0,8).forEach((p,i)=> pl.appendChild(makeRow('phrase',p.id,i+1,p.text)));
+  document.getElementById('edViewAllPhrases').textContent =
+    d.phrases.length>8 ? `View all ${d.phrases.length} phrases` : '';
+
+  // responses
+  const rl = document.getElementById('edRespList');
+  rl.innerHTML = '';
+  d.responses.slice(0,5).forEach((resp,i)=> rl.appendChild(makeRow('resp',resp.id,i+1,resp.text)));
+}
+
+function makeRow(type, id, num, text) {
+  const div = document.createElement('div');
+  div.className = 'phrase-row';
+  div.id = `${type}-${id}`;
+  div.innerHTML = `<span class="phrase-num">${num}</span>
+    <span class="phrase-text">${escHtml(text)}</span>
+    <button class="phrase-del" onclick="${type==='phrase'?'edDelPhrase':'edDelResp'}(${id})">🗑</button>`;
+  return div;
+}
+
+/* Phrases */
+async function edAddPhrase() {
+  const inp = document.getElementById('edPhraseInput');
+  const text = inp.value.trim(); if(!text||!_currentId) return;
+  const r = await fetch(`/api/intents/${_currentId}/phrases`,{method:'POST',
+    headers:{'Content-Type':'application/json'},body:JSON.stringify({text})});
+  if(!r.ok){showToast('Failed','error');return;}
+  const p = await r.json();
+  _phraseCount++;
+  document.getElementById('edPhraseCount').textContent = _phraseCount;
+  document.getElementById('edPhraseList').appendChild(makeRow('phrase',p.id,_phraseCount,text));
+  inp.value=''; inp.focus();
+  showToast('Phrase added','success');
+}
+async function edDelPhrase(id) {
+  const r = await fetch(`/api/intents/${_currentId}/phrases/${id}`,{method:'DELETE'});
+  if(r.ok){document.getElementById(`phrase-${id}`)?.remove();_phraseCount--;document.getElementById('edPhraseCount').textContent=_phraseCount;}
+}
+
+/* Responses */
+async function edAddResp() {
+  const inp = document.getElementById('edRespInput');
+  const text = inp.value.trim(); if(!text||!_currentId) return;
+  const r = await fetch(`/api/intents/${_currentId}/responses`,{method:'POST',
+    headers:{'Content-Type':'application/json'},body:JSON.stringify({text})});
+  if(!r.ok){showToast('Failed','error');return;}
+  const resp = await r.json();
+  _respCount++;
+  document.getElementById('edRespCount').textContent = _respCount;
+  document.getElementById('edRespList').appendChild(makeRow('resp',resp.id,_respCount,text));
+  inp.value=''; inp.focus();
+  showToast('Response added','success');
+}
+async function edDelResp(id) {
+  const r = await fetch(`/api/intents/${_currentId}/responses/${id}`,{method:'DELETE'});
+  if(r.ok){document.getElementById(`resp-${id}`)?.remove();_respCount--;document.getElementById('edRespCount').textContent=_respCount;}
+}
+
+/* Save options */
+async function saveEditorOptions() {
+  if(!_currentId) return;
+  const name = document.getElementById('edIntentName').value.trim();
+  const fallback_response = document.getElementById('edFallback').value.trim();
+  const random_response = document.getElementById('edRandomToggle').checked ? 1 : 0;
+  const r = await fetch(`/api/intents/${_currentId}`,{method:'PUT',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({name,fallback_response,random_response})});
+  if(r.ok){
+    document.getElementById('editorIntentName').textContent = name;
+    document.querySelector(`.intent-item[data-id="${_currentId}"] .intent-name`).textContent = name;
+    showToast('Saved','success');
+  } else showToast('Save failed','error');
+}
+
+/* Delete intent */
+async function deleteCurrentIntent() {
+  if(!_currentId||!confirm('Delete this intent and all its data?')) return;
+  const r = await fetch(`/api/intents/${_currentId}`,{method:'DELETE'});
+  if(r.ok){
+    document.querySelector(`.intent-item[data-id="${_currentId}"]`)?.remove();
+    _currentId=null;
+    document.getElementById('editorPanel').classList.add('hidden');
+    document.getElementById('editorPlaceholder').classList.remove('hidden');
+    showToast('Intent deleted','success');
+  } else showToast('Delete failed','error');
+}
+
+/* ═══ Training ═══ */
+let _pollTimer=null, _startTime=null;
+
+async function startTraining() {
+  _startTime = Date.now();
+  document.getElementById('trainBtn').disabled=true;
+  document.getElementById('trainBtn').textContent='⏳ Training…';
+  document.getElementById('trainDoneMsg').style.display='none';
+  document.getElementById('reloadSection').style.display='none';
+  document.getElementById('trainStatusText').style.display='block';
+  document.getElementById('trainStatusText').textContent='⏳ Training in progress…';
+  showBadge('yellow','⏳ Running');
+
+  const payload={
+    epochs:+document.getElementById('cfgEpochs').value,
+    lr:+document.getElementById('cfgLr').value,
+    word_ngrams:+document.getElementById('cfgNgrams').value,
+    min_count:+document.getElementById('cfgMinCount').value,
+    thread:+document.getElementById('cfgThread').value,
+  };
+  const r=await fetch('/api/train',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+  if(!r.ok){showToast('Failed to start','error');resetTrainBtn();return;}
+  const {job_id}=await r.json();
+  pollJob(job_id);
+}
+
+function pollJob(job_id){
+  clearTimeout(_pollTimer);
+  _pollTimer=setTimeout(async()=>{
+    const r=await fetch(`/api/train/status/${job_id}`);
+    if(!r.ok){pollJob(job_id);return;}
+    const job=await r.json();
+    const ep=+document.getElementById('cfgEpochs').value;
+    document.getElementById('progFill').style.width=(job.progress||0)+'%';
+    document.getElementById('pEpoch').textContent=`${job.epochs_done||0}/${ep}`;
+    if(job.loss!=null) appendLog(`Epoch ${job.epochs_done}/${ep} - Loss: ${(+job.loss).toFixed(4)}`);
+    if(job.total_samples) document.getElementById('pSamples').textContent=job.total_samples;
+    const elapsed=Math.round((Date.now()-_startTime)/1000);
+    document.getElementById('pTime').textContent=`${String(Math.floor(elapsed/60)).padStart(2,'0')}:${String(elapsed%60).padStart(2,'0')}`;
+
+    if(job.status==='running'){pollJob(job_id);}
+    else{
+      resetTrainBtn();
+      if(job.status==='completed'){
+        document.getElementById('progFill').style.width='100%';
+        document.getElementById('pEpoch').textContent=`${ep}/${ep}`;
+        if(job.accuracy) document.getElementById('pAcc').textContent=(job.accuracy*100).toFixed(2)+'%';
+        document.getElementById('trainStatusText').textContent='● Model is trained';
+        document.getElementById('trainStatusText').style.color='var(--success)';
+        document.getElementById('trainDoneMsg').style.display='block';
+        document.getElementById('reloadSection').style.display='block';
+        showBadge('green','✅ Done');
+        appendLog('Training completed!');
+        showToast('Training complete!','success');
+      } else {
+        showBadge('red','❌ Failed');
+        showToast('Training failed','error');
+      }
+    }
+  },800);
+}
+
+function showBadge(color,text){
+  const b=document.getElementById('trainBadge');
+  b.style.display='inline-flex';
+  b.className=`badge badge-${color}`;
+  b.textContent=text;
+}
+function resetTrainBtn(){
+  const btn=document.getElementById('trainBtn');
+  btn.disabled=false;btn.textContent='▶ Train Model';
+}
+async function reloadModel(){
+  const r=await fetch('/api/reload',{method:'POST'});
+  if(r.ok) showToast('Model reloaded','success');
+  else showToast('Reload failed','error');
+}
+
+/* ═══ Log panel ═══ */
+function appendLog(msg){
+  const panel=document.getElementById('dashLogPanel');
+  const ts=new Date().toISOString().replace('T',' ').slice(0,19);
+  const row=document.createElement('div');
+  row.className='log-row';
+  const cls=msg.includes('completed')||msg.includes('success')?'ok':msg.includes('error')||msg.includes('fail')?'er':'';
+  row.innerHTML=`<span class="log-ts">${ts}</span><span class="log-text ${cls}">${escHtml(msg)}</span>`;
+  if(panel.querySelector('.log-text')?.textContent.includes('No training')) panel.innerHTML='';
+  panel.appendChild(row);
+  panel.scrollTop=panel.scrollHeight;
+}
+
+/* Load recent logs */
+(async function(){
+  try{
+    const r=await fetch('/api/logs?limit=5');
+    const logs=await r.json();
+    if(!logs.length) return;
+    const panel=document.getElementById('dashLogPanel');
+    panel.innerHTML='';
+    logs.reverse().forEach(l=>{
+      if(l.started_at) appendLog(`Starting training… Epochs:${l.epochs}`);
+      if(l.accuracy) appendLog(`Training completed! Accuracy: ${(l.accuracy*100).toFixed(2)}%`);
+    });
+  }catch(e){}
+})();
+
+function escHtml(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+</script>
+{% endblock %}

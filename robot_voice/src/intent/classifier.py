@@ -7,6 +7,9 @@ that train.py used.
 from __future__ import annotations
 
 import logging
+import os
+import threading
+import time
 from pathlib import Path
 from typing import Any, Iterable
 
@@ -71,6 +74,7 @@ class IntentClassifier:
         model_path: str | Path | None = None,
         confidence_threshold: float = 0.5,
         low_conf_log_threshold: float | None = None,
+        watch: bool = False,
     ) -> None:
         if fasttext is None:
             raise RuntimeError(
@@ -92,9 +96,36 @@ class IntentClassifier:
             else self.confidence_threshold + 0.1
         )
         self._model = fasttext.load_model(str(path))
+        self._model_lock = threading.Lock()
         self._labels: list[str] = sorted(
             lbl.replace(LABEL_PREFIX, "") for lbl in self._model.get_labels()
         )
+        self._mtime = os.path.getmtime(str(path))
+
+        if watch:
+            self._watcher = threading.Thread(
+                target=self._watch, daemon=True, name="ClassifierWatcher"
+            )
+            self._watcher.start()
+
+    def _watch(self) -> None:
+        """Poll model file every 2 s; reload on mtime change (hot-reload)."""
+        while True:
+            time.sleep(2)
+            try:
+                mtime = os.path.getmtime(str(self.model_path))
+                if mtime != self._mtime:
+                    new_model = fasttext.load_model(str(self.model_path))
+                    new_labels = sorted(
+                        lbl.replace(LABEL_PREFIX, "") for lbl in new_model.get_labels()
+                    )
+                    with self._model_lock:
+                        self._model = new_model
+                        self._labels = new_labels
+                        self._mtime = mtime
+                    logger.info("IntentClassifier: model hot-reloaded from %s", self.model_path)
+            except Exception as exc:
+                logger.error("IntentClassifier hot-reload error: %s", exc)
 
     @property
     def labels(self) -> list[str]:
@@ -113,8 +144,9 @@ class IntentClassifier:
             }
 
         # Ask the model for every label so callers can inspect the full distribution.
-        k = len(self._labels) or -1
-        labels, probs = self._model.predict(cleaned, k=k)
+        with self._model_lock:
+            k = len(self._labels) or -1
+            labels, probs = self._model.predict(cleaned, k=k)
         all_scores = {
             lbl.replace(LABEL_PREFIX, ""): float(p) for lbl, p in zip(labels, probs)
         }

@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>{% block title %}FastText Trainer{% endblock %} — Hotel Intent Trainer</title>
+  <meta name="description" content="Web UI for managing and training the FastText hotel intent classifier."/>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}"/>
+  {% block head %}{% endblock %}
+</head>
+<body>
+<button class="mobile-btn" id="mobileBtn" aria-label="Menu">☰</button>
+
+<!-- ── TOP HEADER ─────────────────────── -->
+<header class="app-header">
+  <div class="app-header-logo">
+    <div class="logo-icon">🧠</div>
+    <div class="logo-text">
+      <div class="logo-title">FastText Trainer</div>
+      <div class="logo-sub">Intent Classification</div>
+    </div>
+  </div>
+
+  <div class="header-spacer"></div>
+
+  <div class="header-actions">
+    <div class="model-pill" id="modelPill">
+      <span id="modelPillText">Checking…</span>
+    </div>
+    <a href="{{ url_for('trainer.training') }}" class="btn btn-train">
+      🎓 <span>Train Model</span>
+    </a>
+    <a href="/api/backup" class="btn btn-ghost" download="training_data.json">
+      ⬇ <span>Export Model</span>
+    </a>
+    <a href="{{ url_for('trainer.settings') }}" class="btn btn-ghost" style="padding:.45rem .6rem;">⚙</a>
+  </div>
+</header>
+
+<!-- ── SIDEBAR ────────────────────────── -->
+<aside class="sidebar" id="sidebar">
+  <nav style="flex:1;padding:.5rem 0;">
+
+    <a href="{{ url_for('trainer.dashboard') }}"
+       class="nav-link {% if active=='dashboard' %}active{% endif %}">
+      <span class="nav-icon">⊞</span> Dashboard
+    </a>
+
+    <div class="nav-section">Intents</div>
+    <a href="{{ url_for('trainer.dashboard') }}"
+       class="nav-link {% if active=='dashboard' %}active{% endif %}">
+      <span class="nav-icon">●</span> All Intents
+    </a>
+    <a href="#" class="nav-link" id="navAddIntent">
+      <span class="nav-icon">+</span> Add Intent
+    </a>
+
+    <div class="nav-divider"></div>
+    <div class="nav-section">Data</div>
+    <a href="{{ url_for('trainer.dashboard') }}" class="nav-link">
+      <span class="nav-icon">☰</span> Training Phrases
+    </a>
+    <a href="{{ url_for('trainer.dashboard') }}" class="nav-link">
+      <span class="nav-icon">☰</span> Responses
+    </a>
+
+    <div class="nav-divider"></div>
+    <div class="nav-section">Training</div>
+    <a href="{{ url_for('trainer.training') }}"
+       class="nav-link {% if active=='training' %}active{% endif %}">
+      <span class="nav-icon">▶</span> Train Model
+    </a>
+    <a href="{{ url_for('trainer.training') }}#model-info"
+       class="nav-link {% if active=='training' %}active{% endif %}">
+      <span class="nav-icon">ℹ</span> Model Info
+    </a>
+    <a href="{{ url_for('trainer.logs') }}"
+       class="nav-link {% if active=='logs' %}active{% endif %}">
+      <span class="nav-icon">📋</span> Logs
+    </a>
+
+    <div class="nav-divider"></div>
+    <div class="nav-section">Testing</div>
+    <a href="{{ url_for('trainer.testing') }}"
+       class="nav-link {% if active=='testing' %}active{% endif %}">
+      <span class="nav-icon">✓</span> Test Intent
+    </a>
+    <a href="{{ url_for('trainer.testing') }}#batch"
+       class="nav-link {% if active=='testing' %}active{% endif %}">
+      <span class="nav-icon">≡</span> Batch Test
+    </a>
+
+    <div class="nav-divider"></div>
+    <div class="nav-section">System</div>
+    <a href="{{ url_for('trainer.settings') }}"
+       class="nav-link {% if active=='settings' %}active{% endif %}">
+      <span class="nav-icon">⚙</span> Settings
+    </a>
+    <a href="{{ url_for('trainer.settings') }}#backup"
+       class="nav-link {% if active=='settings' %}active{% endif %}">
+      <span class="nav-icon">↕</span> Backup / Restore
+    </a>
+  </nav>
+
+  <!-- system status -->
+  <div class="sys-status" id="sysStatus">
+    <div class="sys-status-title">System Status</div>
+    <div class="sys-row"><span class="sys-label">Status</span><span class="sys-online">● Online</span></div>
+    <div class="sys-row"><span class="sys-label">Python</span><span class="sys-value" id="sysPy">—</span></div>
+    <div class="sys-row"><span class="sys-label">fastText</span><span class="sys-value" id="sysFt">—</span></div>
+    <div class="sys-row" style="margin-bottom:.5rem;"><span class="sys-label">RAM</span><span class="sys-value" id="sysRam">—</span></div>
+    <div class="ram-bar"><div class="ram-fill" id="ramFill" style="width:0%"></div></div>
+  </div>
+</aside>
+
+<!-- ── MAIN CONTENT ───────────────────── -->
+<main class="main">
+  <div class="main-content">
+    {% block content %}{% endblock %}
+  </div>
+</main>
+
+<!-- ── Toast container ────────────────── -->
+<div class="toast-container" id="toastContainer"></div>
+
+<!-- ── Add Intent Modal ───────────────── -->
+<div class="modal-backdrop" id="addModal">
+  <div class="modal">
+    <div class="modal-title">Add New Intent</div>
+    <div class="form-group">
+      <label class="form-label">Intent Name</label>
+      <input type="text" id="newIntentName" placeholder="e.g. room_service"
+             onkeydown="if(event.key==='Enter')submitAddIntent()"/>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="submitAddIntent()">Create Intent</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── Toast ──
+function showToast(msg, type='info', ms=3400) {
+  const c = document.getElementById('toastContainer');
+  const t = document.createElement('div');
+  const ico = {success:'✅',error:'❌',info:'ℹ️'};
+  t.className = `toast ${type}`;
+  t.innerHTML = `<span>${ico[type]||'•'}</span><span>${msg}</span>`;
+  c.appendChild(t);
+  setTimeout(()=>{ t.style.animation='fadeOut .3s ease forwards'; setTimeout(()=>t.remove(),300); }, ms);
+}
+window.showToast = showToast;
+
+// ── Mobile sidebar ──
+const mobileBtn = document.getElementById('mobileBtn');
+const sidebar = document.getElementById('sidebar');
+mobileBtn.addEventListener('click', ()=> sidebar.classList.toggle('open'));
+document.addEventListener('click', e=>{
+  if(sidebar.classList.contains('open') && !sidebar.contains(e.target) && e.target !== mobileBtn)
+    sidebar.classList.remove('open');
+});
+
+// ── Add Intent modal ──
+function openModal() {
+  document.getElementById('addModal').classList.add('open');
+  setTimeout(()=>document.getElementById('newIntentName').focus(), 60);
+}
+function closeModal() {
+  document.getElementById('addModal').classList.remove('open');
+  document.getElementById('newIntentName').value = '';
+}
+async function submitAddIntent() {
+  const name = document.getElementById('newIntentName').value.trim();
+  if(!name) return;
+  const r = await fetch('/api/intents',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name})});
+  if(!r.ok){ const e=await r.json(); showToast(e.error||'Error','error'); return; }
+  const d = await r.json();
+  showToast(`Intent "${name}" created!`,'success');
+  closeModal();
+  window.location.href = `/intents/${d.id}`;
+}
+document.getElementById('navAddIntent').addEventListener('click', e=>{ e.preventDefault(); openModal(); });
+window.openModal = openModal;
+window.closeModal = closeModal;
+window.submitAddIntent = submitAddIntent;
+
+// ── Model status pill ──
+async function checkModelStatus() {
+  try {
+    const r = await fetch('/api/model/info');
+    const d = await r.json();
+    const pill = document.getElementById('modelPill');
+    const txt = document.getElementById('modelPillText');
+    if(d.exists) {
+      pill.className = 'model-pill';
+      txt.textContent = 'Model: ' + (d.model_path||'').split(/[\\/]/).pop();
+    } else {
+      pill.className = 'model-pill offline';
+      txt.textContent = 'No model — train first';
+    }
+  } catch(e){}
+}
+checkModelStatus();
+
+// ── System status ──
+async function loadSysInfo() {
+  try {
+    const r = await fetch('/api/system');
+    const d = await r.json();
+    document.getElementById('sysPy').textContent = d.python || '—';
+    document.getElementById('sysFt').textContent = d.fasttext || '—';
+    const ramPct = d.ram_pct || 0;
+    document.getElementById('sysRam').textContent = `${d.ram_used||'—'} / ${d.ram_total||'—'}`;
+    document.getElementById('ramFill').style.width = ramPct + '%';
+  } catch(e) {
+    document.getElementById('sysPy').textContent = 'N/A';
+  }
+}
+loadSysInfo();
+</script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

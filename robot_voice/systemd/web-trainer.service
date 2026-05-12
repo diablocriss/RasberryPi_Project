@@ -1,0 +1,22 @@
+[Unit]
+Description=Hotel Intent Web Trainer (Flask)
+Documentation=https://github.com/diablocriss/RasberryPi_Project
+After=network.target
+
+[Service]
+Type=simple
+User=phuong
+WorkingDirectory=/home/phuong/robot_voice
+Environment="TRAINER_PORT=5000"
+Environment="TRAINER_DB_PATH=/home/phuong/robot_voice/data/trainer.db"
+Environment="ROBOT_BOOKING_LIB=/home/phuong/AppBookingResPi4/libbooking.so"
+Environment="ROBOT_BOOKING_DB=/home/phuong/AppBookingResPi4/bookings.db"
+ExecStart=/home/phuong/robot_voice/.venv/bin/python -m src.web_trainer.app
+Restart=on-failure
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=web-trainer
+
+[Install]
+WantedBy=multi-user.target

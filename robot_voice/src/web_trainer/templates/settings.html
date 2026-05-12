@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+{% block title %}Settings{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Settings</h1>
+    <p class="page-subtitle">Configure paths and manage backups</p>
+  </div>
+</div>
+
+<div class="card mb-2">
+  <div class="card-header"><span class="card-title">⚙ Configuration</span></div>
+  <div class="form-group">
+    <label for="modelPath">Model Path</label>
+    <input type="text" id="modelPath" value="{{ model_path }}" />
+  </div>
+  <div class="form-group">
+    <label for="dbPath">DB Path</label>
+    <input type="text" id="dbPath" value="{{ db_path }}" disabled
+           style="background:#f8fafc;color:var(--text-muted);" />
+    <small class="text-muted" style="font-size:.75rem;">DB path is set at startup; change via TRAINER_DB_PATH env var.</small>
+  </div>
+  <button class="btn btn-primary" onclick="saveSettings()">Save Settings</button>
+</div>
+
+<!-- ── Backup / Restore ── -->
+<div class="card" id="backup">
+  <div class="card-header"><span class="card-title">↕ Backup / Restore</span></div>
+
+  <div style="margin-bottom:1.25rem;">
+    <p class="text-light" style="font-size:.875rem;margin-bottom:.75rem;">
+      Download a full export of all intents and training phrases as <code>training_data.json</code>.
+    </p>
+    <a href="/api/backup" class="btn btn-primary" download="training_data.json">
+      ⬇ Download training_data.json
+    </a>
+  </div>
+
+  <div class="section-divider">Restore from backup</div>
+
+  <p class="text-light" style="font-size:.875rem;margin-bottom:.75rem;">
+    Upload a <code>training_data.json</code> backup. Existing intents are kept; new phrases are merged in.
+  </p>
+  <form id="restoreForm" onsubmit="restoreBackup(event)">
+    <div class="form-group">
+      <label for="backupFile">Choose file</label>
+      <input type="file" id="backupFile" accept=".json,application/json"
+             style="padding:.4rem;font-size:.84rem;" required />
+    </div>
+    <button type="submit" class="btn btn-success">⬆ Upload and Restore</button>
+  </form>
+
+  <div id="restoreResult" class="test-result" style="margin-top:.75rem;"></div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function saveSettings() {
+  const model_path = document.getElementById('modelPath').value.trim();
+  const r = await fetch('/api/settings', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({model_path})
+  });
+  if(r.ok) showToast('Settings saved','success');
+  else showToast('Failed to save','error');
+}
+
+async function restoreBackup(e) {
+  e.preventDefault();
+  const file = document.getElementById('backupFile').files[0];
+  if(!file) return showToast('No file selected','error');
+  const fd = new FormData();
+  fd.append('file', file);
+  try {
+    const r = await fetch('/api/restore', {method:'POST', body: fd});
+    const d = await r.json();
+    const el = document.getElementById('restoreResult');
+    el.classList.add('show');
+    if(r.ok) {
+      el.style.borderLeft = '3px solid var(--success)';
+      el.innerHTML = `<strong class="text-success">✅ Restore complete!</strong><br>
+        ${d.imported_phrases} new phrase(s) imported.`;
+      showToast(`Imported ${d.imported_phrases} phrases`,'success');
+    } else {
+      el.style.borderLeft = '3px solid var(--danger)';
+      el.innerHTML = `<strong class="text-danger">❌ Error:</strong> ${d.error}`;
+      showToast(d.error,'error');
+    }
+  } catch(err) { showToast('Upload failed','error'); }
+}
+</script>
+{% endblock %}

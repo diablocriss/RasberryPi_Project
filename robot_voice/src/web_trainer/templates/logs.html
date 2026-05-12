@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+{% block title %}Training Logs{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Training Logs</h1>
+    <p class="page-subtitle">History of all training runs</p>
+  </div>
+  <button class="btn btn-ghost" onclick="loadLogs()">↻ Refresh</button>
+</div>
+
+<div class="card">
+  <div class="card-header">
+    <span class="card-title">Log Viewer</span>
+    <button class="btn btn-ghost btn-sm" onclick="clearDisplay()">Clear Display</button>
+  </div>
+  <div class="log-viewer" id="logViewer">
+    {% if training_logs %}
+      {% for log in training_logs %}
+      <div style="margin-bottom:.75rem;padding-bottom:.75rem;border-bottom:1px solid #1e293b;">
+        <div class="log-line">
+          <span class="log-ts">{{ log.started_at or '—' }}</span>
+          <span class="log-msg {% if log.status=='completed' %}success{% elif log.status=='failed' %}error{% else %}info{% endif %}">
+            [{{ log.status|upper }}] Epochs: {{ log.epochs or '—' }}
+            {% if log.accuracy %} | Accuracy: {{ '%.2f'|format(log.accuracy*100) }}%{% endif %}
+            {% if log.total_samples %} | Samples: {{ log.total_samples }}{% endif %}
+          </span>
+        </div>
+        {% if log.loss_history %}
+          {% set losses = log.loss_history | tojson %}
+          <div style="margin-top:.35rem;margin-left:1rem;">
+            {% for entry in log.loss_history | from_json_safe %}
+            <div class="log-line">
+              <span class="log-ts">  </span>
+              <span class="log-msg">{{ entry }}</span>
+            </div>
+            {% endfor %}
+          </div>
+        {% endif %}
+        <div class="log-line" style="margin-top:.2rem;">
+          <span class="log-ts">{{ log.finished_at or '…' }}</span>
+          <span class="log-msg {% if log.status=='completed' %}success{% elif log.status=='failed' %}error{% endif %}">
+            {% if log.status == 'completed' %}✓ Training completed successfully!{% elif log.status == 'failed' %}✕ Training failed{% else %}{{ log.status }}{% endif %}
+          </span>
+        </div>
+      </div>
+      {% endfor %}
+    {% else %}
+      <div class="log-line"><span class="log-msg info">No training runs yet. Go to Training to start your first run.</span></div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- ── Recent logs summary table ── -->
+{% if training_logs %}
+<div class="card mt-2">
+  <div class="card-header"><span class="card-title">Run Summary</span></div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>#</th><th>Started</th><th>Finished</th>
+          <th>Epochs</th><th>Accuracy</th><th>Samples</th><th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for log in training_logs %}
+        <tr>
+          <td>{{ log.id }}</td>
+          <td>{{ log.started_at or '—' }}</td>
+          <td>{{ log.finished_at or '—' }}</td>
+          <td>{{ log.epochs or '—' }}</td>
+          <td>{% if log.accuracy %}{{ '%.2f'|format(log.accuracy*100) }}%{% else %}—{% endif %}</td>
+          <td>{{ log.total_samples or '—' }}</td>
+          <td>
+            <span class="badge badge-{{ log.status }}">{{ log.status }}</span>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function loadLogs() {
+  try {
+    const r = await fetch('/api/logs?limit=20');
+    const logs = await r.json();
+    // Simple reload
+    window.location.reload();
+  } catch(e) { showToast('Failed to refresh','error'); }
+}
+
+function clearDisplay() {
+  document.getElementById('logViewer').innerHTML =
+    '<div class="log-line"><span class="log-msg info">Display cleared.</span></div>';
+}
+</script>
+{% endblock %}

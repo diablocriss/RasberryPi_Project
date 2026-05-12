@@ -36,3 +36,6 @@ htmlcov/
 models/vosk/*/
 !models/vosk/*/.gitkeep
 
+# AppBookingResPi4 build output (compiled binaries, regeneratable)
+AppBookingResPi4/build/
+

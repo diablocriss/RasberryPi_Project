@@ -1,0 +1,175 @@
+{% extends "base.html" %}
+{% block title %}Edit {{ intent.name }}{% endblock %}
+
+{% block content %}
+<a href="{{ url_for('trainer.dashboard') }}" class="back-link">← Back to Dashboard</a>
+
+<div class="flex-b mb-2" style="flex-wrap:wrap;gap:.75rem;">
+  <div>
+    <div class="page-title">Edit Intent: <span id="pageIntentName">{{ intent.name }}</span></div>
+    <div class="page-sub">Manage training phrases and response pool</div>
+  </div>
+  <div style="display:flex;gap:.5rem;">
+    <button class="btn btn-danger" onclick="deleteIntent()">🗑 Delete Intent</button>
+    <button class="btn btn-primary" onclick="saveOptions()">💾 Save Changes</button>
+  </div>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;" class="edit-cols">
+
+  <!-- LEFT -->
+  <div>
+    <!-- Name -->
+    <div class="card mb-2" style="padding:1rem;">
+      <label class="form-label">Intent Name</label>
+      <div style="display:flex;gap:.5rem;">
+        <input type="text" id="intentNameInput" value="{{ intent.name }}"/>
+        <button class="btn btn-primary" onclick="saveName()">Save</button>
+      </div>
+    </div>
+
+    <!-- Phrases -->
+    <div class="card mb-2" style="overflow:hidden;">
+      <div class="panel-header">
+        Training Phrases <span class="badge badge-blue" id="phraseCount">{{ intent.phrases|length }}</span>
+      </div>
+      <div style="padding:.75rem;">
+        <div style="display:flex;gap:.5rem;margin-bottom:.6rem;">
+          <input type="text" id="newPhraseInput" placeholder="Enter new training phrase…"
+                 onkeydown="if(event.key==='Enter')addPhrase()"/>
+          <button class="btn btn-primary" onclick="addPhrase()">Add Phrase</button>
+        </div>
+        <div class="phrase-list" id="phraseList">
+          {% if intent.phrases %}
+            {% for p in intent.phrases %}
+            <div class="phrase-row" id="phrase-{{ p.id }}">
+              <span class="phrase-num">{{ loop.index }}</span>
+              <span class="phrase-text">{{ p.text }}</span>
+              <button class="phrase-del" onclick="deletePhrase({{ p.id }})">🗑</button>
+            </div>
+            {% endfor %}
+          {% else %}
+            <div style="padding:1rem;text-align:center;color:var(--text-muted);font-size:.8rem;">No phrases yet.</div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT -->
+  <div>
+    <!-- Responses -->
+    <div class="card mb-2" style="overflow:hidden;">
+      <div class="panel-header">
+        Responses <span class="badge badge-green" id="responseCount">{{ intent.responses|length }}</span>
+      </div>
+      <div style="padding:.75rem;">
+        <div style="display:flex;gap:.5rem;margin-bottom:.6rem;">
+          <input type="text" id="newRespInput" placeholder="Enter new response…"
+                 onkeydown="if(event.key==='Enter')addResponse()"/>
+          <button class="btn btn-success" onclick="addResponse()">Add Response</button>
+        </div>
+        <div class="phrase-list" id="responseList">
+          {% if intent.responses %}
+            {% for r in intent.responses %}
+            <div class="phrase-row" id="response-{{ r.id }}">
+              <span class="phrase-num">{{ loop.index }}</span>
+              <span class="phrase-text">{{ r.text }}</span>
+              <button class="phrase-del" onclick="deleteResponse({{ r.id }})">🗑</button>
+            </div>
+            {% endfor %}
+          {% else %}
+            <div style="padding:1rem;text-align:center;color:var(--text-muted);font-size:.8rem;">No responses yet.</div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <!-- Options -->
+    <div class="card" style="padding:1rem;">
+      <div class="toggle-wrap mb-1">
+        <div>
+          <div class="toggle-label">Random Response</div>
+          <div class="toggle-sub">Randomly select a response when this intent is matched.</div>
+        </div>
+        <label class="toggle-switch">
+          <input type="checkbox" id="randomToggle" {% if intent.random_response %}checked{% endif %}/>
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+      <div class="form-group mt-2">
+        <label class="form-label">Fallback Response (optional)</label>
+        <input type="text" id="fallbackInput" value="{{ intent.fallback_response or '' }}"
+               placeholder="I can't help with that right now."/>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const INTENT_ID = {{ intent.id }};
+let pCount = {{ intent.phrases|length }};
+let rCount = {{ intent.responses|length }};
+
+async function saveName() {
+  const name = document.getElementById('intentNameInput').value.trim();
+  if(!name) return showToast('Name required','error');
+  const r = await fetch(`/api/intents/${INTENT_ID}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({name})});
+  if(r.ok){document.getElementById('pageIntentName').textContent=name;showToast('Name saved','success');}
+  else showToast('Error saving','error');
+}
+
+async function saveOptions() {
+  await saveName();
+  const random_response = document.getElementById('randomToggle').checked ? 1 : 0;
+  const fallback_response = document.getElementById('fallbackInput').value.trim();
+  const r = await fetch(`/api/intents/${INTENT_ID}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({random_response,fallback_response})});
+  if(r.ok) showToast('Options saved','success');
+}
+
+async function deleteIntent() {
+  if(!confirm('Delete this intent and all its data?')) return;
+  const r = await fetch(`/api/intents/${INTENT_ID}`,{method:'DELETE'});
+  if(r.ok){showToast('Deleted','success');setTimeout(()=>window.location='/',700);}
+  else showToast('Delete failed','error');
+}
+
+function makeRow(type,id,num,text){
+  const div=document.createElement('div');
+  div.className='phrase-row';div.id=`${type}-${id}`;
+  div.innerHTML=`<span class="phrase-num">${num}</span><span class="phrase-text">${escHtml(text)}</span><button class="phrase-del" onclick="${type==='phrase'?'deletePhrase':'deleteResponse'}(${id})">🗑</button>`;
+  return div;
+}
+
+async function addPhrase(){
+  const inp=document.getElementById('newPhraseInput');const text=inp.value.trim();if(!text)return;
+  const r=await fetch(`/api/intents/${INTENT_ID}/phrases`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text})});
+  if(!r.ok){showToast('Failed','error');return;}
+  const p=await r.json();pCount++;
+  document.getElementById('phraseCount').textContent=pCount;
+  document.getElementById('phraseList').appendChild(makeRow('phrase',p.id,pCount,text));
+  inp.value='';inp.focus();showToast('Phrase added','success');
+}
+async function deletePhrase(id){
+  const r=await fetch(`/api/intents/${INTENT_ID}/phrases/${id}`,{method:'DELETE'});
+  if(r.ok){document.getElementById(`phrase-${id}`)?.remove();pCount--;document.getElementById('phraseCount').textContent=pCount;}
+}
+async function addResponse(){
+  const inp=document.getElementById('newRespInput');const text=inp.value.trim();if(!text)return;
+  const r=await fetch(`/api/intents/${INTENT_ID}/responses`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text})});
+  if(!r.ok){showToast('Failed','error');return;}
+  const resp=await r.json();rCount++;
+  document.getElementById('responseCount').textContent=rCount;
+  document.getElementById('responseList').appendChild(makeRow('response',resp.id,rCount,text));
+  inp.value='';inp.focus();showToast('Response added','success');
+}
+async function deleteResponse(id){
+  const r=await fetch(`/api/intents/${INTENT_ID}/responses/${id}`,{method:'DELETE'});
+  if(r.ok){document.getElementById(`response-${id}`)?.remove();rCount--;document.getElementById('responseCount').textContent=rCount;}
+}
+function escHtml(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+</script>
+<style>@media(max-width:700px){.edit-cols{grid-template-columns:1fr!important;}}</style>
+{% endblock %}
