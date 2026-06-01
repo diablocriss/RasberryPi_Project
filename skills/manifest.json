@@ -1,0 +1,30 @@
+{
+  "version": 1,
+  "skills": [
+    {
+      "name": "deploy-pi",
+      "description": "Cross-compile and deploy both subsystems to Raspberry Pi targets via SSH/SCP.",
+      "path": "skills/deploy-pi/SKILL.md"
+    },
+    {
+      "name": "example",
+      "description": "Describe what this skill covers in one or two sentences.",
+      "path": "skills/example/SKILL.md"
+    },
+    {
+      "name": "karpathy-guidelines",
+      "description": "Core behavioral rules preventing the most common LLM coding mistakes.",
+      "path": "skills/karpathy-guidelines/SKILL.md"
+    },
+    {
+      "name": "planner-executor-setup",
+      "description": "Bootstrap the Planner-Executor workflow into any new project so that Claude acts as Planner and GitHub Copilot acts as Executor, with Karpathy principles enforced throughout.",
+      "path": "skills/planner-executor-setup/SKILL.md"
+    },
+    {
+      "name": "robot-voice",
+      "description": "Python voice-command controller running on Raspberry Pi 4.",
+      "path": "skills/robot-voice/SKILL.md"
+    }
+  ]
+}

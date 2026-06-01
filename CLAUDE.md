@@ -4,9 +4,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-A voice-controlled robot system with two subsystems:
+Three subsystems live in this repo:
+
 - **`robot_voice/`** — Python controller running on Raspberry Pi 4 (also runnable on Windows for dev/testing). Handles audio capture, speech-to-text, command resolution via an FSD tree, text-to-speech feedback, and UART output to the motor controller.
-- **`robot_voice_esp32/`** — C++ firmware for ESP32-S3 motor controller. Receives JSON packets over UART (115200 baud) and drives motors. Built with PlatformIO (board: `esp32-s3-devkitc-1`, upload port: COM15).
+- **`AppBookingResPi4/`** — Lightweight C HTTP booking-reservation server for Raspberry Pi 4. SQLite persistence, embedded HTML dashboard. Its compiled `.so` is also loaded by `robot_voice/src/db/booking_bridge.py` via ctypes so the robot can query room bookings at runtime.
 
 ## Development Commands
 
@@ -56,16 +57,6 @@ bash scripts/pi_process.sh pi-audio-live
 VERBOSE=1 bash scripts/pi_process.sh check
 ```
 
-### ESP32 Firmware
-
-```bash
-# Build and upload via PlatformIO
-pio run -t upload
-
-# Monitor serial output
-pio device monitor --baud 115200
-```
-
 ## Architecture
 
 ### Python (robot_voice/src/)
@@ -85,13 +76,25 @@ pio device monitor --baud 115200
 - `fsd_tree.py` — Maps spoken phrases (e.g. "move forward") to JSON motor packets. The FSD tree is the primary command routing mechanism.
 - `fsd_ai.py` + `tasx_adapter.py` — Optional AI overlay using a TASX GGUF model via llama.cpp, runs before FSD keyword matching in `ai_fsd` mode.
 - `command_builder.py` / `command_validator.py` — Construct and validate JSON before UART send.
+- `ollama_pipeline.py` / `optimized_pipeline.py` — Experimental Ollama-based NLU pipelines.
+- `context_manager.py` — Tracks multi-turn command context across utterances.
+- `response_handler.py` — Formats TTS responses based on command outcomes.
 
-**stt/** and **tts/** — Routing layers with online/offline fallback:
-- STT: Deepgram (cloud, requires `DEEPGRAM_API_KEY`) or Vosk (offline). `router.py` auto-selects based on network and API key availability.
-- TTS: Microsoft Edge (cloud) or Piper (local). `router.py` auto-selects similarly.
+**intent/** — Lightweight ML intent classifier:
+- `train.py` — Trains a classifier from `training_data.json`.
+- `classifier.py` + `preprocess.py` — Run-time classification.
+- The web trainer UI (`web_trainer/`) provides a browser-based editor for `training_data.json`.
+
+**stt/** — STT routing layer (online/offline):
+- Deepgram (cloud, `DEEPGRAM_API_KEY`), Vosk (offline), or MoonShine (offline, `moonshine_stt.py`). `router.py` auto-selects.
+
+**tts/** — TTS routing layer:
+- Microsoft Edge (cloud) or Piper (local). `router.py` auto-selects.
 
 **audio/** — Hardware abstraction:
-- `pipeline_i2s.py` — Modern I2S microphone pipeline (INMP441 → Deepgram/Vosk).
+- `pipeline_i2s.py` — Modern I2S microphone pipeline (INMP441 → Deepgram/Vosk/MoonShine).
+- `pipeline_moonshine.py` — Dedicated pipeline for the MoonShine offline STT model.
+- `wake_word.py` — Wake-word detection (via `arecord`) gates the STT pipeline.
 - `pipeline.py` — Legacy USB CDC audio pipeline.
 - `vad.py` — Voice activity detection gates audio before STT processing.
 - PCM target format: 16-bit signed, 16 kHz, mono.
@@ -99,9 +102,15 @@ pio device monitor --baud 115200
 **comm/** — Hardware output:
 - `uart.py` — Sends JSON packets at 115200 baud. `ROBOT_DRY_RUN=1` prints instead of sending (default on Windows).
 
-### ESP32 (robot_voice_esp32/src/)
+**db/** — Cross-system bridge:
+- `booking_bridge.py` — Loads the `AppBookingResPi4` compiled `.so` via ctypes, exposing room booking queries to the Python pipeline. Requires the C library to be compiled and the path passed via environment.
 
-Receives JSON over UART, parses with ArduinoJson, and drives DC motors. `Test_speaker_main.cpp` implements SAM TTS output to the MAX98357 I2S amplifier.
+**web_trainer/** — Flask training UI:
+- Start with `python -m src.web_trainer.app` (port 5000 by default). Provides dashboard, intent editor, log viewer, and live-test interface. Can also be embedded via `start_trainer()` in a background thread.
+
+### AppBookingResPi4 (AppBookingResPi4/)
+
+C11 HTTP server with SQLite persistence. See `AppBookingResPi4/CLAUDE.md` for the full build/deploy/architecture reference for that subsystem. Key cross-system note: edit `web/index.html` or `web/admin.html` and run `make` — the Makefile auto-converts HTML to `src/*_html.h` via `xxd`; never edit the `.h` files directly.
 
 ## Key Environment Variables
 
@@ -125,9 +134,38 @@ Copy `robot_voice/.env.example` and customize:
 
 - **Pi**: Raspberry Pi 4 at `phuong@192.168.1.66`
 - **I2S mic**: INMP441 — see `docs/I2S_WIRING.md` for GPIO pinout
-- **I2S amp**: MAX98357 (BCLK=17, LRC=18, DIN=15 on ESP32)
-- **ESP32**: ESP32-S3 DevKit-C-1 (16MB flash), COM15 on Windows
 
 ## Tests
 
-Tests live in `robot_voice/tests/`. Integration tests (`tests/integration/`) require hardware or live API keys and are skipped in dry-run CI. Unit tests in `tests/unit/` run fully offline.
+Tests live in `robot_voice/tests/`. Two layouts coexist:
+- `tests/unit/` — fully offline unit tests (FSD tree, VAD, audio utils, response handler).
+- `tests/` root — additional offline tests for UART, settings, PCM, and pipelines. These also run without hardware.
+- `tests/integration/` — require hardware or live API keys; skipped in dry-run CI.
+
+Run a single test file: `pytest tests/unit/test_fsd_tree.py -q` (from `robot_voice/`).
+
+---
+
+## Current state
+
+> **Update this section at the end of every sprint.**
+
+**Last updated:** 2026-05-31
+**Completed sprints:** None yet
+
+### What exists
+- [x] `robot_voice/` — full Python voice pipeline (STT, TTS, FSD, intent, web trainer)
+- [x] `AppBookingResPi4/` — C HTTP booking server with SQLite and embedded dashboard
+- [x] `robot_voice/src/db/booking_bridge.py` — ctypes bridge linking both subsystems
+- [x] Planner-Executor workflow scaffolded (`.claude/`, `.plans/`, `skills/`)
+
+### Known issues / tech debt
+_None documented yet_
+
+### Decisions made (summary)
+| Decision | Chosen | Rejected | Sprint |
+|----------|--------|----------|--------|
+| _None yet_ | | | |
+
+### What NOT to regenerate
+_Populate after first sprint_
